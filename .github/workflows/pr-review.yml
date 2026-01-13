@@ -1,0 +1,546 @@
+# PR 自动审查 - 语法检查 + AI 语义审查
+# 当有 PR 创建或更新时自动触发
+
+name: PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# 限制并发，避免同一 PR 多次触发时重复评论
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # ==================== 静态检查（先于 AI 审查）====================
+  auto-check:
+    name: 🔍 静态检查
+    runs-on: ubuntu-latest
+    outputs:
+      syntax_ok: ${{ steps.syntax.outputs.syntax_ok }}
+      has_py_changes: ${{ steps.check_files.outputs.has_py_changes }}
+    
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: 🔄 获取 base 分支
+        run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
+      
+      - name: 🐍 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: 📦 安装依赖
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt 2>/dev/null || true
+          pip install flake8
+      
+      - name: 📋 检查变更文件
+        id: check_files
+        run: |
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.py' 2>/dev/null || echo "")
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "has_py_changes=false" >> $GITHUB_OUTPUT
+            echo "✅ 没有修改 Python 文件" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "has_py_changes=true" >> $GITHUB_OUTPUT
+            echo "CHANGED_FILES<<EOF" >> $GITHUB_ENV
+            echo "$CHANGED_FILES" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          fi
+      
+      - name: 🐍 Python 语法检查
+        id: syntax
+        if: steps.check_files.outputs.has_py_changes == 'true'
+        run: |
+          echo "## 🐍 语法检查" >> $GITHUB_STEP_SUMMARY
+          echo "检查文件: $CHANGED_FILES"
+          
+          ERRORS=""
+          SYNTAX_OK="true"
+          for file in $CHANGED_FILES; do
+            if [ -f "$file" ]; then
+              if ! python -m py_compile "$file" 2>&1; then
+                ERRORS="$ERRORS\n❌ $file 语法错误"
+                SYNTAX_OK="false"
+              fi
+            fi
+          done
+          
+          echo "syntax_ok=$SYNTAX_OK" >> $GITHUB_OUTPUT
+          
+          if [ "$SYNTAX_OK" = "false" ]; then
+            echo -e "$ERRORS" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ 所有文件语法正确" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: 🔎 Flake8 检查（严重错误）
+        if: steps.check_files.outputs.has_py_changes == 'true'
+        continue-on-error: true
+        run: |
+          echo "## 🔎 代码质量检查" >> $GITHUB_STEP_SUMMARY
+          
+          # 只检查严重错误
+          RESULT=$(flake8 $CHANGED_FILES --select=E9,F63,F7,F82 --format='%(path)s:%(row)d: %(code)s %(text)s' 2>/dev/null || true)
+          
+          if [ -n "$RESULT" ]; then
+            echo "⚠️ 发现以下问题：" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$RESULT" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ 未发现严重代码问题" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: 📊 变更统计
+        run: |
+          echo "## 📊 变更统计" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          STATS=$(git diff --stat origin/${{ github.base_ref }}...HEAD 2>/dev/null | tail -1)
+          echo "$STATS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### 修改的文件" >> $GITHUB_STEP_SUMMARY
+          git diff --name-status origin/${{ github.base_ref }}...HEAD 2>/dev/null | while read status file; do
+            case $status in
+              A) echo "- 🆕 \`$file\` (新增)" >> $GITHUB_STEP_SUMMARY ;;
+              M) echo "- 📝 \`$file\` (修改)" >> $GITHUB_STEP_SUMMARY ;;
+              D) echo "- 🗑️ \`$file\` (删除)" >> $GITHUB_STEP_SUMMARY ;;
+              *) echo "- 📄 \`$file\`" >> $GITHUB_STEP_SUMMARY ;;
+            esac
+          done
+
+  # ==================== AI 代码审查（依赖静态检查通过）====================
+  ai-review:
+    name: 🤖 AI 代码审查
+    runs-on: ubuntu-latest
+    needs: [auto-check]
+    # 仅当：1. 静态检查通过 2. 有 Python 文件变更 3. 未禁用 AI 审查
+    if: |
+      needs.auto-check.result == 'success' &&
+      needs.auto-check.outputs.has_py_changes == 'true' &&
+      vars.ENABLE_AI_REVIEW != 'false'
+    
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: 🔄 获取 base 分支
+        run: git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
+      
+      - name: 🐍 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: 📦 安装依赖
+        run: pip install google-genai openai httpx
+      
+      - name: 🤖 AI 审查代码变更
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL_FALLBACK: ${{ vars.GEMINI_MODEL_FALLBACK }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL }}
+        run: |
+          python << 'EOF'
+          import os
+          import subprocess
+
+          MAX_DIFF_LENGTH = 15000
+
+          def get_diff():
+              """获取 PR 的代码变更"""
+              base_ref = os.environ.get('GITHUB_BASE_REF', 'main')
+              result = subprocess.run(
+                  ['git', 'diff', f'origin/{base_ref}...HEAD', '--', '*.py'],
+                  capture_output=True, text=True
+              )
+              diff = result.stdout
+              truncated = len(diff) > MAX_DIFF_LENGTH
+              return diff[:MAX_DIFF_LENGTH], truncated
+
+          def get_changed_files():
+              """获取修改的文件列表"""
+              base_ref = os.environ.get('GITHUB_BASE_REF', 'main')
+              result = subprocess.run(
+                  ['git', 'diff', '--name-only', f'origin/{base_ref}...HEAD', '--', '*.py'],
+                  capture_output=True, text=True
+              )
+              return result.stdout.strip().split('\n') if result.stdout.strip() else []
+
+          def build_prompt(diff_content, files, truncated):
+              """构建审查提示词"""
+              truncate_notice = ""
+              if truncated:
+                  truncate_notice = "\n\n> ⚠️ 注意：由于变更内容过长，diff 已被截断，请基于可见部分进行审查。\n"
+              
+              # 检测核心文件变更
+              core_files = [f for f in files if f in ['main.py', 'config.py', 'analyzer.py', 'notification.py']]
+              core_notice = ""
+              if core_files:
+                  core_notice = f"\n\n> 🔔 **核心文件变更**: {', '.join(core_files)}，请重点审查！\n"
+              
+              return f"""你是一位资深 Python 代码审查专家。请审查以下代码变更，并给出专业的审查意见。
+
+## 修改的文件
+{', '.join(files)}{core_notice}{truncate_notice}
+
+## 代码变更 (diff)
+```diff
+{diff_content}
+```
+
+## 审查要求
+请从以下维度进行审查，使用中文回复：
+
+1. **🔒 安全性**: 是否存在安全漏洞（如 SQL 注入、敏感信息泄露等）
+2. **🐛 潜在 Bug**: 是否有逻辑错误、边界条件未处理、异常未捕获
+3. **⚡ 性能**: 是否有性能问题（如不必要的循环、内存泄漏风险）
+4. **📖 可读性**: 代码是否清晰易懂，命名是否规范
+5. **🏗️ 架构设计**: 是否符合项目架构，有无更好的实现方式
+
+## 输出格式
+- 如果代码质量良好，简要说明优点
+- 如果发现问题，列出具体问题和改进建议
+- 给出总体评价：✅ 建议合入 / ⚠️ 建议修改后合入 / ❌ 需要重大修改
+
+请保持简洁，重点突出。"""
+
+          def review_with_gemini(prompt):
+              """使用 Gemini API 进行审查"""
+              api_key = os.environ.get('GEMINI_API_KEY')
+              model = os.environ.get('GEMINI_MODEL_FALLBACK', 'gemini-2.5-flash')
+              
+              if not api_key:
+                  print("Gemini API Key 未配置")
+                  return None
+              
+              try:
+                  from google import genai
+                  client = genai.Client(api_key=api_key)
+                  response = client.models.generate_content(
+                      model=model,
+                      contents=prompt
+                  )
+                  print(f"✅ Gemini ({model}) 审查成功")
+                  return response.text
+              except Exception as e:
+                  print(f"❌ Gemini 审查失败: {e}")
+                  return None
+
+          def review_with_openai(prompt):
+              """使用 OpenAI 兼容 API 进行审查（备用）"""
+              api_key = os.environ.get('OPENAI_API_KEY')
+              base_url = os.environ.get('OPENAI_BASE_URL', 'https://api.openai.com/v1')
+              model = os.environ.get('OPENAI_MODEL', 'gpt-4o-mini')
+              
+              if not api_key:
+                  print("OpenAI API Key 未配置")
+                  return None
+              
+              try:
+                  from openai import OpenAI
+                  client = OpenAI(api_key=api_key, base_url=base_url)
+                  response = client.chat.completions.create(
+                      model=model,
+                      messages=[{"role": "user", "content": prompt}],
+                      max_tokens=2000,
+                      temperature=0.3
+                  )
+                  print(f"✅ OpenAI 兼容接口 ({model}) 审查成功")
+                  return response.choices[0].message.content
+              except Exception as e:
+                  print(f"❌ OpenAI 兼容接口审查失败: {e}")
+                  return None
+
+          def ai_review(diff_content, files, truncated):
+              """调用 AI 进行代码审查，优先 Gemini，失败后尝试 OpenAI"""
+              prompt = build_prompt(diff_content, files, truncated)
+              
+              # 1. 优先尝试 Gemini
+              result = review_with_gemini(prompt)
+              if result:
+                  return result
+              
+              # 2. Gemini 失败，尝试 OpenAI 兼容接口
+              print("尝试使用 OpenAI 兼容接口...")
+              result = review_with_openai(prompt)
+              if result:
+                  return result
+              
+              return None
+
+          def main():
+              diff, truncated = get_diff()
+              files = get_changed_files()
+              
+              if not diff or not files:
+                  print("没有 Python 代码变更，跳过 AI 审查")
+                  with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+                      f.write("## 🤖 AI 代码审查\n\n✅ 没有 Python 代码变更\n")
+                  return
+              
+              print(f"审查文件: {files}")
+              if truncated:
+                  print(f"⚠️ Diff 内容已截断至 {MAX_DIFF_LENGTH} 字符")
+              
+              review = ai_review(diff, files, truncated)
+              
+              if review:
+                  with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+                      f.write(f"## 🤖 AI 代码审查\n\n{review}\n")
+                  
+                  with open('ai_review_result.txt', 'w') as f:
+                      f.write(review)
+                  
+                  print("AI 审查完成")
+              else:
+                  print("⚠️ 所有 AI 接口都不可用")
+                  with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+                      f.write("## 🤖 AI 代码审查\n\n⚠️ AI 接口不可用，请检查配置\n")
+
+          if __name__ == '__main__':
+              main()
+          EOF
+      
+      - name: 📤 上传审查结果
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-review-result
+          path: ai_review_result.txt
+          if-no-files-found: ignore
+
+  # ==================== PR 标签自动分类 ====================
+  labeler:
+    name: 🏷️ 自动标签
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+      
+      - name: 🏷️ 添加标签
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            const labels = new Set();
+            
+            for (const file of files) {
+              const filename = file.filename.toLowerCase();
+              
+              // 根据文件路径添加标签
+              if (filename.includes('notification') || filename.includes('webhook')) {
+                labels.add('notification');
+              }
+              if (filename.includes('feishu')) {
+                labels.add('feishu');
+              }
+              if (filename.includes('data_provider') || filename.includes('fetcher')) {
+                labels.add('data-source');
+              }
+              if (filename.includes('analyzer') || filename.includes('ai')) {
+                labels.add('ai');
+              }
+              if (filename.endsWith('.md') || filename.includes('doc')) {
+                labels.add('documentation');
+              }
+              if (filename.includes('workflow') || filename.includes('.github')) {
+                labels.add('ci/cd');
+              }
+              if (filename.includes('config')) {
+                labels.add('configuration');
+              }
+              if (filename.includes('test')) {
+                labels.add('testing');
+              }
+            }
+            
+            // 根据变更大小添加标签
+            const additions = files.reduce((sum, f) => sum + f.additions, 0);
+            const deletions = files.reduce((sum, f) => sum + f.deletions, 0);
+            const totalChanges = additions + deletions;
+            
+            if (totalChanges < 50) {
+              labels.add('size/S');
+            } else if (totalChanges < 200) {
+              labels.add('size/M');
+            } else if (totalChanges < 500) {
+              labels.add('size/L');
+            } else {
+              labels.add('size/XL');
+            }
+            
+            // 添加标签
+            if (labels.size > 0) {
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  labels: Array.from(labels)
+                });
+                console.log(`Added labels: ${Array.from(labels).join(', ')}`);
+              } catch (e) {
+                console.log(`Failed to add labels: ${e.message}`);
+              }
+            }
+
+  # ==================== 自动评论检查结果 ====================
+  comment:
+    name: 💬 审查报告
+    runs-on: ubuntu-latest
+    needs: [auto-check, ai-review]
+    if: always()
+    
+    steps:
+      - name: 📥 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: 📥 下载 AI 审查结果
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: ai-review-result
+          path: .
+      
+      - name: 💬 生成审查报告
+        env:
+          AUTO_CHECK_RESULT: ${{ needs.auto-check.result }}
+          AI_REVIEW_RESULT: ${{ needs.ai-review.result }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // 获取 PR 信息
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            // 获取修改的文件
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            const additions = files.reduce((sum, f) => sum + f.additions, 0);
+            const deletions = files.reduce((sum, f) => sum + f.deletions, 0);
+            const changedFiles = files.length;
+            
+            // 读取 AI 审查结果
+            let aiReview = '';
+            try {
+              aiReview = fs.readFileSync('ai_review_result.txt', 'utf8');
+            } catch (e) {
+              console.log('No AI review result found');
+            }
+            
+            // 检查是否需要更新评论（避免重复评论）
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            
+            const botComment = comments.find(c => 
+              c.user.type === 'Bot' && 
+              c.body.includes('## 🤖 自动审查报告')
+            );
+            
+            // 通过 env 获取状态，避免变量插值问题
+            const checkStatus = process.env.AUTO_CHECK_RESULT === 'success' ? '✅ 通过' : '⚠️ 有问题';
+            const aiStatus = process.env.AI_REVIEW_RESULT === 'success' ? '✅ 已完成' : 
+                            process.env.AI_REVIEW_RESULT === 'skipped' ? '⏭️ 跳过' : '⚠️ 失败';
+            
+            let report = `## 🤖 自动审查报告
+
+| 项目 | 结果 |
+|------|------|
+| 📊 变更文件 | ${changedFiles} 个 |
+| ➕ 新增行数 | ${additions} 行 |
+| ➖ 删除行数 | ${deletions} 行 |
+| 🔍 静态检查 | ${checkStatus} |
+| 🧠 AI 审查 | ${aiStatus} |
+
+### 📁 修改的文件
+
+`;
+            
+            for (const file of files.slice(0, 20)) {
+              const status = file.status === 'added' ? '🆕' : 
+                            file.status === 'removed' ? '🗑️' : '📝';
+              report += `- ${status} \`${file.filename}\` (+${file.additions}/-${file.deletions})\n`;
+            }
+            
+            if (files.length > 20) {
+              report += `\n... 还有 ${files.length - 20} 个文件\n`;
+            }
+            
+            // 添加 AI 审查结果
+            if (aiReview) {
+              report += `
+---
+
+### 🧠 AI 代码审查意见
+
+${aiReview}
+`;
+            }
+            
+            report += `
+---
+
+> 💡 **提示**: 请确保代码已通过本地测试，并遵循项目代码规范。
+> 
+> 查看 [CI 检查详情](${context.payload.pull_request.html_url}/checks) 获取更多信息。
+`;
+            
+            // 更新或创建评论
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: report
+              });
+              console.log('Updated existing comment');
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: report
+              });
+              console.log('Created new comment');
+            }
