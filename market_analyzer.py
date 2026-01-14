@@ -88,12 +88,12 @@ class MarketAnalyzer:
     
     # 主要指数代码
     MAIN_INDICES = {
-        '000001': '上证指数',
-        '399001': '深证成指',
-        '399006': '创业板指',
-        '000688': '科创50',
-        '000016': '上证50',
-        '000300': '沪深300',
+        'sh000001': '上证指数',
+        'sz399001': '深证成指',
+        'sz399006': '创业板指',
+        'sh000688': '科创50',
+        'sh000016': '上证50',
+        'sh000300': '沪深300',
     }
     
     def __init__(self, search_service: Optional[SearchService] = None, analyzer=None):
@@ -139,8 +139,8 @@ class MarketAnalyzer:
         try:
             logger.info("[大盘] 获取主要指数实时行情...")
             
-            # 使用 akshare 获取指数行情
-            df = ak.stock_zh_index_spot_em()
+            # 使用 akshare 获取指数行情（新浪财经接口，包含深市指数）
+            df = ak.stock_zh_index_spot_sina()
             
             if df is not None and not df.empty:
                 for code, name in self.MAIN_INDICES.items():
