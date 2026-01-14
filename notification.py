@@ -15,6 +15,7 @@ A股自选股智能分析系统 - 通知层
 """
 
 import logging
+import json
 import smtplib
 import re
 from datetime import datetime
@@ -1678,10 +1679,13 @@ class NotificationService:
                     'User-Agent': 'StockAnalysis/1.0'
                 }
                 
+                body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+                headers_with_charset = dict(headers)
+                headers_with_charset['Content-Type'] = 'application/json; charset=utf-8'
                 response = requests.post(
                     url,
-                    json=payload,
-                    headers=headers,
+                    data=body,
+                    headers=headers_with_charset,
                     timeout=30
                 )
                 
