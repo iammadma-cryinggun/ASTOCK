@@ -24,6 +24,7 @@ concurrency:
 permissions:
   contents: read
   pull-requests: write
+  issues: write
 
 jobs:
   # ==================== 静态检查（先于 AI 审查）====================
@@ -260,6 +261,7 @@ jobs:
       
       - name: 📥 下载 AI 审查结果
         uses: actions/download-artifact@v4
+        if: needs.ai-review.result == 'success'
         continue-on-error: true
         with:
           name: ai-review-result
