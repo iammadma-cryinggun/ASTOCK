@@ -687,6 +687,15 @@ def run_market_review(notifier: NotificationService, analyzer=None, search_servi
         review_report = market_analyzer.run_daily_review()
         
         if review_report:
+            # 保存报告到文件
+            date_str = datetime.now().strftime('%Y%m%d')
+            report_filename = f"market_review_{date_str}.md"
+            filepath = notifier.save_report_to_file(
+                f"# 🎯 大盘复盘\n\n{review_report}", 
+                report_filename
+            )
+            logger.info(f"大盘复盘报告已保存: {filepath}")
+            
             # 推送通知
             if notifier.is_available():
                 # 添加标题

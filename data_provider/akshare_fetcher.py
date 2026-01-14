@@ -648,6 +648,8 @@ class AkshareFetcher(BaseFetcher):
         数据来源：ak.stock_cyq_em()
         包含：获利比例、平均成本、筹码集中度
         
+        注意：ETF/指数没有筹码分布数据，会直接返回 None
+        
         Args:
             stock_code: 股票代码
             
@@ -655,6 +657,11 @@ class AkshareFetcher(BaseFetcher):
             ChipDistribution 对象（最新一天的数据），获取失败返回 None
         """
         import akshare as ak
+        
+        # ETF/指数没有筹码分布数据
+        if _is_etf_code(stock_code):
+            logger.debug(f"[API跳过] {stock_code} 是 ETF/指数，无筹码分布数据")
+            return None
         
         try:
             # 防封禁策略
