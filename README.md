@@ -292,8 +292,24 @@ daily_stock_analysis/
 详见 [贡献指南](CONTRIBUTING.md)
 
 ## 📄 License
-
 [MIT License](LICENSE) © 2026 ZhuLinsen
+
+如果你在项目中使用或基于本项目进行二次开发，
+非常欢迎在 README 或文档中注明来源并附上本仓库链接。
+这将有助于项目的持续维护和社区发展。
+
+## 📬 联系与合作
+- GitHub Issues：[提交 Issue](https://github.com/ZhuLinsen/daily_stock_analysis/issues)
+
+## ⭐ Star History
+
+<a href="https://star-history.com/#ZhuLinsen/daily_stock_analysis&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=ZhuLinsen/daily_stock_analysis&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=ZhuLinsen/daily_stock_analysis&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=ZhuLinsen/daily_stock_analysis&type=Date" />
+ </picture>
+</a>
 
 ## ⚠️ 免责声明
 
