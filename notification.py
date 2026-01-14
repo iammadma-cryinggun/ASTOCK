@@ -1992,8 +1992,8 @@ if __name__ == "__main__":
     
     # 显示检测到的渠道
     print(f"=== 通知渠道检测 ===")
-    print(f"当前渠道: {service.get_channel_name()}")
-    print(f"渠道类型: {service.get_channel()}")
+    print(f"当前渠道: {service.get_channel_names()}")
+    print(f"渠道列表: {service.get_available_channels()}")
     print(f"服务可用: {service.is_available()}")
     
     # 生成日报
@@ -2008,7 +2008,7 @@ if __name__ == "__main__":
     
     # 推送测试
     if service.is_available():
-        print(f"\n=== 推送测试（{service.get_channel_name()}）===")
+        print(f"\n=== 推送测试（{service.get_channel_names()}）===")
         success = service.send(report)
         print(f"推送结果: {'成功' if success else '失败'}")
     else:
