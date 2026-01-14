@@ -46,7 +46,7 @@ from storage import get_db, DatabaseManager
 from data_provider import DataFetcherManager
 from data_provider.akshare_fetcher import AkshareFetcher, RealtimeQuote, ChipDistribution
 from analyzer import GeminiAnalyzer, AnalysisResult, STOCK_NAME_MAP
-from notification import NotificationService, send_daily_report
+from notification import NotificationService, NotificationChannel, send_daily_report
 from search_service import SearchService, SearchResponse
 from stock_analyzer import StockTrendAnalyzer, TrendAnalysisResult
 from market_analyzer import MarketAnalyzer
@@ -577,12 +577,33 @@ class StockAnalysisPipeline:
             
             # 推送通知
             if self.notifier.is_available():
-                # 生成精简版决策仪表盘用于推送
-                dashboard_content = self.notifier.generate_wechat_dashboard(results)
-                logger.info(f"决策仪表盘长度: {len(dashboard_content)} 字符")
-                logger.debug(f"推送内容:\n{dashboard_content}")
-                
-                success = self.notifier.send(dashboard_content)
+                channels = self.notifier.get_available_channels()
+
+                # 企业微信：只发精简版（平台限制）
+                wechat_success = False
+                if NotificationChannel.WECHAT in channels:
+                    dashboard_content = self.notifier.generate_wechat_dashboard(results)
+                    logger.info(f"企业微信仪表盘长度: {len(dashboard_content)} 字符")
+                    logger.debug(f"企业微信推送内容:\n{dashboard_content}")
+                    wechat_success = self.notifier.send_to_wechat(dashboard_content)
+
+                # 其他渠道：发完整报告（避免自定义 Webhook 被 wechat 截断逻辑污染）
+                non_wechat_success = False
+                for channel in channels:
+                    if channel == NotificationChannel.WECHAT:
+                        continue
+                    if channel == NotificationChannel.FEISHU:
+                        non_wechat_success = self.notifier.send_to_feishu(report) or non_wechat_success
+                    elif channel == NotificationChannel.TELEGRAM:
+                        non_wechat_success = self.notifier.send_to_telegram(report) or non_wechat_success
+                    elif channel == NotificationChannel.EMAIL:
+                        non_wechat_success = self.notifier.send_to_email(report) or non_wechat_success
+                    elif channel == NotificationChannel.CUSTOM:
+                        non_wechat_success = self.notifier.send_to_custom(report) or non_wechat_success
+                    else:
+                        logger.warning(f"未知通知渠道: {channel}")
+
+                success = wechat_success or non_wechat_success
                 if success:
                     logger.info("决策仪表盘推送成功")
                 else:
