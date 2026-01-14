@@ -76,7 +76,8 @@ def build_prompt(diff_content, files, truncated):
 def review_with_gemini(prompt):
     """使用 Gemini API 进行审查"""
     api_key = os.environ.get('GEMINI_API_KEY')
-    model = os.environ.get('GEMINI_MODEL_FALLBACK', 'gemini-2.5-flash')
+    # 优先使用 GEMINI_MODEL_FALLBACK，如果未设置则使用硬编码的默认值
+    model = os.environ.get('GEMINI_MODEL_FALLBACK') or 'gemini-2.5-flash'
     
     if not api_key:
         print("❌ Gemini API Key 未配置（检查 GitHub Secrets: GEMINI_API_KEY）")
