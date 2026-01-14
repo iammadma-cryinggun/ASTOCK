@@ -251,7 +251,7 @@ daily_stock_analysis/
 - [x] Telegram Bot
 - [x] 邮件通知（SMTP）
 - [x] 自定义 Webhook（支持钉钉、Discord、Slack、Bark 等）
-- [ ] iOS/Android 推送（Pushover）
+- [x] iOS/Android 推送（Pushover）
 
 ### 🤖 AI 模型支持
 - [x] Google Gemini（主力，免费额度）
