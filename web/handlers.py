@@ -96,21 +96,37 @@ class HtmlResponse(Response):
 
 class PageHandler:
     """页面请求处理器"""
-    
+
     def __init__(self):
         self.config_service = get_config_service()
-    
+
     def handle_index(self) -> Response:
         """处理首页请求 GET /"""
         stock_list = self.config_service.get_stock_list()
         env_filename = self.config_service.get_env_filename()
         body = render_config_page(stock_list, env_filename)
         return HtmlResponse(body)
-    
+
+    def handle_history(self) -> Response:
+        """处理历史记录页面 GET /history"""
+        from src.storage import DatabaseManager
+
+        db = DatabaseManager.get_instance()
+
+        # 获取历史记录和已分析股票列表
+        history_list = db.get_analysis_history(limit=50)
+        stock_codes = db.get_unique_analyzed_stocks()
+
+        # 转换为字典列表
+        history_dicts = [h.to_dict() for h in history_list]
+
+        body = render_history_page(history_dicts, stock_codes)
+        return HtmlResponse(body)
+
     def handle_update(self, form_data: Dict[str, list]) -> Response:
         """
         处理配置更新 POST /update
-        
+
         Args:
             form_data: 表单数据
         """
@@ -226,7 +242,7 @@ class ApiHandler:
     def handle_task_status(self, query: Dict[str, list]) -> Response:
         """
         查询单个任务状态 GET /task?id=xxx
-        
+
         Args:
             query: URL 查询参数
         """
@@ -236,17 +252,52 @@ class ApiHandler:
                 {"success": False, "error": "缺少必填参数: id (任务ID)"},
                 status=HTTPStatus.BAD_REQUEST
             )
-        
+
         task_id = task_id_list[0].strip()
         task = self.analysis_service.get_task_status(task_id)
-        
+
         if task is None:
             return JsonResponse(
                 {"success": False, "error": f"任务不存在: {task_id}"},
                 status=HTTPStatus.NOT_FOUND
             )
-        
+
         return JsonResponse({"success": True, "task": task})
+
+    def handle_detail(self, query: Dict[str, list]) -> Response:
+        """
+        查询分析详情 GET /detail?id=xxx
+
+        Args:
+            query: URL 查询参数
+        """
+        from src.storage import DatabaseManager
+
+        id_list = query.get("id", [])
+        if not id_list or not id_list[0].strip():
+            return JsonResponse(
+                {"success": False, "error": "缺少必填参数: id (分析记录ID)"},
+                status=HTTPStatus.BAD_REQUEST
+            )
+
+        try:
+            analysis_id = int(id_list[0].strip())
+        except ValueError:
+            return JsonResponse(
+                {"success": False, "error": "无效的 ID 格式"},
+                status=HTTPStatus.BAD_REQUEST
+            )
+
+        db = DatabaseManager.get_instance()
+        detail = db.get_analysis_by_id(analysis_id)
+
+        if detail is None:
+            return JsonResponse(
+                {"success": False, "error": f"分析记录不存在: {analysis_id}"},
+                status=HTTPStatus.NOT_FOUND
+            )
+
+        return JsonResponse({"success": True, "detail": detail.to_dict()})
 
 
 # ============================================================

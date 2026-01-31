@@ -49,6 +49,15 @@
 | `WEBUI_HOST` | `0.0.0.0` | WebUI 监听地址 |
 | `WEBUI_PORT` | `8000` | WebUI 端口 |
 
+### Telegram 通知配置（可选）
+
+| 变量名 | 值 | 说明 |
+|--------|----|----- |
+| `TELEGRAM_BOT_TOKEN` | `你的Bot Token` | 从 @BotFather 获取 |
+| `TELEGRAM_CHAT_ID` | `你的Chat ID` | 纯数字 |
+
+> 📖 详细的 Telegram 配置指南请参考：[docs/telegram-guide.md](docs/telegram-guide.md)
+
 ### 第四步：配置域名
 
 #### 选项1：使用 Zeabur 自动域名
@@ -116,8 +125,16 @@ your-stock-domain.com  →  股票分析系统
 部署完成后，你可以：
 
 1. **访问 WebUI**: `https://你的域名`
-2. **健康检查**: `https://你的域名/health`
-3. **查看任务**: `https://你的域名/tasks`
+   - 📝 输入股票代码进行快速分析
+   - 📊 查看分析历史记录
+   - 🔍 查看详细分析报告
+
+2. **API 接口**:
+   - `/health` - 健康检查
+   - `/analysis?code=xxx` - 触发股票分析
+   - `/tasks` - 查看任务列表
+   - `/history` - 查看分析历史
+   - `/detail?id=xxx` - 查看分析详情
 
 ---
 

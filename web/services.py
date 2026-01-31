@@ -278,14 +278,23 @@ class AnalysisService:
                     "trend_prediction": result.trend_prediction,
                     "analysis_summary": result.analysis_summary,
                 }
-                
+
+                # 保存分析历史记录
+                try:
+                    from src.storage import DatabaseManager
+                    db = DatabaseManager.get_instance()
+                    db.save_analysis(result)
+                    logger.info(f"[AnalysisService] 已保存分析历史记录: {code}")
+                except Exception as e:
+                    logger.warning(f"[AnalysisService] 保存历史记录失败: {e}")
+
                 with self._tasks_lock:
                     self._tasks[task_id].update({
                         "status": "completed",
                         "end_time": datetime.now().isoformat(),
                         "result": result_data
                     })
-                
+
                 logger.info(f"[AnalysisService] 股票 {code} 分析完成: {result.operation_advice}")
                 return {"success": True, "task_id": task_id, "result": result_data}
             else:
