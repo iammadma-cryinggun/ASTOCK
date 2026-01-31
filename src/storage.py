@@ -26,6 +26,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     Integer,
+    Text,
     Index,
     UniqueConstraint,
     select,
@@ -118,6 +119,76 @@ class StockDaily(Base):
             'volume_ratio': self.volume_ratio,
             'data_source': self.data_source,
         }
+
+
+class AnalysisHistory(Base):
+    """
+    股票分析历史记录模型
+
+    存储 AI 分析结果的历史记录，用于追踪和回顾
+    """
+    __tablename__ = 'analysis_history'
+
+    # 主键
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # 股票信息
+    code = Column(String(10), nullable=False, index=True)
+    name = Column(String(50))  # 股票名称
+
+    # 分析时间
+    analysis_time = Column(DateTime, nullable=False, index=True)
+
+    # 核心分析结果
+    sentiment_score = Column(Integer)  # 综合评分 0-100
+    trend_prediction = Column(String(50))  # 趋势预测
+    operation_advice = Column(String(50))  # 操作建议
+    confidence_level = Column(String(20))  # 置信度
+
+    # 详细分析内容（JSON 格式存储）
+    trend_analysis = Column(Text)  # 走势分析
+    technical_analysis = Column(Text)  # 技术面分析
+    fundamental_analysis = Column(Text)  # 基本面分析
+    news_summary = Column(Text)  # 新闻摘要
+    analysis_summary = Column(Text)  # 综合分析摘要
+    key_points = Column(Text)  # 核心看点
+    risk_warning = Column(Text)  # 风险提示
+
+    # 报告类型
+    report_type = Column(String(20))  # simple 或 full
+
+    # 创建时间
+    created_at = Column(DateTime, default=datetime.now, index=True)
+
+    # 索引
+    __table_args__ = (
+        Index('ix_code_analysis_time', 'code', 'analysis_time'),
+    )
+
+    def __repr__(self):
+        return f"<AnalysisHistory(code={self.code}, name={self.name}, time={self.analysis_time})>"
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            'id': self.id,
+            'code': self.code,
+            'name': self.name,
+            'analysis_time': self.analysis_time.isoformat() if self.analysis_time else None,
+            'sentiment_score': self.sentiment_score,
+            'trend_prediction': self.trend_prediction,
+            'operation_advice': self.operation_advice,
+            'confidence_level': self.confidence_level,
+            'trend_analysis': self.trend_analysis,
+            'technical_analysis': self.technical_analysis,
+            'fundamental_analysis': self.fundamental_analysis,
+            'news_summary': self.news_summary,
+            'analysis_summary': self.analysis_summary,
+            'key_points': self.key_points,
+            'risk_warning': self.risk_warning,
+            'report_type': self.report_type,
+        }
+
 
 
 class DatabaseManager:
@@ -459,7 +530,109 @@ class DatabaseManager:
             context['ma_status'] = self._analyze_ma_status(today_data)
         
         return context
-    
+
+    def save_analysis(self, result: 'AnalysisResult') -> int:
+        """
+        保存分析结果到历史记录
+
+        Args:
+            result: AnalysisResult 对象
+
+        Returns:
+            保存的记录 ID
+        """
+        from src.analyzer import AnalysisResult
+
+        if not isinstance(result, AnalysisResult):
+            logger.warning(f"无效的分析结果类型: {type(result)}")
+            return 0
+
+        with self.get_session() as session:
+            try:
+                history = AnalysisHistory(
+                    code=result.code,
+                    name=result.name,
+                    analysis_time=datetime.now(),
+                    sentiment_score=result.sentiment_score,
+                    trend_prediction=result.trend_prediction,
+                    operation_advice=result.operation_advice,
+                    confidence_level=result.confidence_level,
+                    trend_analysis=result.trend_analysis,
+                    technical_analysis=result.technical_analysis,
+                    fundamental_analysis=result.fundamental_analysis,
+                    news_summary=result.news_summary,
+                    analysis_summary=result.analysis_summary,
+                    key_points=result.key_points,
+                    risk_warning=result.risk_warning,
+                    report_type='full',  # 默认为完整报告
+                )
+                session.add(history)
+                session.commit()
+                logger.info(f"保存分析记录: {result.code} - {result.operation_advice}")
+                return history.id
+            except Exception as e:
+                session.rollback()
+                logger.error(f"保存分析记录失败: {e}")
+                return 0
+
+    def get_analysis_history(
+        self,
+        code: Optional[str] = None,
+        limit: int = 50
+    ) -> List[AnalysisHistory]:
+        """
+        获取分析历史记录
+
+        Args:
+            code: 股票代码（可选，不指定则查询所有）
+            limit: 返回记录数量
+
+        Returns:
+            AnalysisHistory 对象列表（按时间倒序）
+        """
+        with self.get_session() as session:
+            query = select(AnalysisHistory)
+
+            if code:
+                query = query.where(AnalysisHistory.code == code)
+
+            results = session.execute(
+                query.order_by(desc(AnalysisHistory.analysis_time)).limit(limit)
+            ).scalars().all()
+
+            return list(results)
+
+    def get_analysis_by_id(self, analysis_id: int) -> Optional[AnalysisHistory]:
+        """
+        根据 ID 获取单条分析记录
+
+        Args:
+            analysis_id: 分析记录 ID
+
+        Returns:
+            AnalysisHistory 对象或 None
+        """
+        with self.get_session() as session:
+            return session.execute(
+                select(AnalysisHistory).where(AnalysisHistory.id == analysis_id)
+            ).scalar_one_or_none()
+
+    def get_unique_analyzed_stocks(self) -> List[str]:
+        """
+        获取所有已分析过的股票代码列表
+
+        Returns:
+            股票代码列表
+        """
+        with self.get_session() as session:
+            results = session.execute(
+                select(AnalysisHistory.code)
+                .distinct()
+                .order_by(AnalysisHistory.code)
+            ).scalars().all()
+
+            return list(results)
+
     def _analyze_ma_status(self, data: StockDaily) -> str:
         """
         分析均线形态

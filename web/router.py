@@ -21,7 +21,7 @@ from web.handlers import (
     Response, HtmlResponse, JsonResponse,
     get_page_handler, get_api_handler, get_bot_handler
 )
-from web.templates import render_error_page
+from web.templates import render_error_page, render_history_page
 
 if TYPE_CHECKING:
     from http.server import BaseHTTPRequestHandler
@@ -290,7 +290,13 @@ def create_default_router() -> Router:
         lambda q: page_handler.handle_index(),
         "配置首页"
     )
-    
+
+    router.register(
+        "/history", "GET",
+        lambda q: page_handler.handle_history(),
+        "分析历史记录"
+    )
+
     router.register(
         "/update", "POST",
         lambda form: page_handler.handle_update(form),
@@ -320,6 +326,12 @@ def create_default_router() -> Router:
         "/task", "GET",
         lambda q: api_handler.handle_task_status(q),
         "查询任务状态"
+    )
+
+    router.register(
+        "/detail", "GET",
+        lambda q: api_handler.handle_detail(q),
+        "查询分析详情"
     )
     
     # === Bot Webhook 路由 ===

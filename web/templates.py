@@ -916,7 +916,10 @@ def render_config_page(
     
     content = f"""
   <div class="container">
-    <h2>📈 A股/港股/美股分析</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h2 style="margin: 0;">📈 A股/港股/美股分析</h2>
+      <a href="/history" style="color: var(--primary); text-decoration: none; font-size: 0.875rem;">📊 历史记录</a>
+    </div>
     
     <!-- 快速分析区域 -->
     <div class="analysis-section" style="margin-top: 0; padding-top: 0; border-top: none;">
@@ -983,14 +986,14 @@ def render_error_page(
 ) -> bytes:
     """
     渲染错误页面
-    
+
     Args:
         status_code: HTTP 状态码
         message: 错误消息
         details: 详细信息
     """
     details_html = f"<p class='text-muted'>{html.escape(details)}</p>" if details else ""
-    
+
     content = f"""
   <div class="container" style="text-align: center;">
     <h2>😵 {status_code}</h2>
@@ -999,9 +1002,430 @@ def render_error_page(
     <a href="/" style="color: var(--primary); text-decoration: none;">← 返回首页</a>
   </div>
 """
-    
+
     page = render_base(
         title=f"错误 {status_code}",
         content=content
+    )
+    return page.encode("utf-8")
+
+
+def render_history_page(
+    history: list,
+    stock_list: list
+) -> bytes:
+    """
+    渲染分析历史记录页面
+
+    Args:
+        history: 分析历史记录列表
+        stock_list: 已分析的股票代码列表
+    """
+    # 生成历史记录 HTML
+    history_items_html = ""
+    for item in history:
+        advice_class = "buy" if "买" in item.get("operation_advice", "") else "sell" if "卖" in item.get("operation_advice", "") else "wait"
+        time_str = item.get("analysis_time", "")[:16] if item.get("analysis_time") else ""
+
+        history_items_html += f"""
+        <div class="history-card" onclick="showDetail({item.get('id')})">
+            <div class="history-header">
+                <span class="stock-code">{html.escape(item.get('code', ''))}</span>
+                <span class="stock-name">{html.escape(item.get('name', ''))}</span>
+                <span class="history-time">{time_str}</span>
+            </div>
+            <div class="history-body">
+                <span class="advice-badge {advice_class}">{html.escape(item.get('operation_advice', '未知'))}</span>
+                <span class="score-badge">评分: {item.get('sentiment_score', 0)}</span>
+                <span class="trend-badge">{html.escape(item.get('trend_prediction', ''))}</span>
+            </div>
+            <div class="history-summary">
+                {html.escape((item.get('analysis_summary') or '')[:150])}...
+            </div>
+        </div>
+        """
+
+    if not history:
+        history_items_html = '<div class="task-hint">暂无分析记录</div>'
+
+    # 生成股票列表 HTML
+    stock_list_html = ""
+    for code in stock_list[:20]:  # 最多显示 20 个
+        stock_list_html += f'<span class="stock-tag" onclick="filterByCode(\'{code}\')">{html.escape(code)}</span>'
+
+    extra_css = """
+/* History Page */
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1rem;
+}
+
+.history-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.history-nav {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.history-nav a {
+    color: var(--primary);
+    text-decoration: none;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    background: var(--bg);
+}
+
+.history-nav a:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.stock-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.stock-tag {
+    padding: 0.25rem 0.5rem;
+    background: var(--bg);
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.stock-tag:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.history-card {
+    background: var(--bg);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid var(--border);
+}
+
+.history-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.stock-code {
+    font-family: monospace;
+    font-weight: 600;
+    color: var(--primary);
+    background: white;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+}
+
+.stock-name {
+    color: var(--text-light);
+    font-size: 0.875rem;
+}
+
+.history-time {
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+.history-body {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.advice-badge {
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--border);
+}
+
+.advice-badge.buy {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.advice-badge.sell {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.advice-badge.wait {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.score-badge {
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    background: white;
+    color: var(--text-light);
+}
+
+.trend-badge {
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    background: white;
+    color: var(--text-light);
+}
+
+.history-summary {
+    font-size: 0.875rem;
+    color: var(--text-light);
+    line-height: 1.5;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+    overflow-y: auto;
+}
+
+.modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 1rem;
+    max-width: 600px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: 1rem;
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-light);
+    padding: 0;
+    width: auto;
+}
+
+.modal-close:hover {
+    color: var(--text);
+    background: none;
+    transform: none;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.detail-section {
+    margin-bottom: 1.5rem;
+}
+
+.detail-section h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+}
+
+.detail-section p {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--text-light);
+    margin: 0;
+}
+
+.detail-meta {
+    display: flex;
+    gap: 1rem;
+    padding: 0.75rem;
+    background: var(--bg);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.meta-item {
+    font-size: 0.875rem;
+}
+
+.meta-label {
+    color: var(--text-light);
+}
+
+.meta-value {
+    font-weight: 600;
+    color: var(--text);
+}
+"""
+
+    extra_js = """
+<script>
+function showDetail(id) {
+    fetch('/detail?id=' + id)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const detail = data.detail;
+                const modal = document.getElementById('detailModal');
+
+                document.getElementById('detailCode').textContent = detail.code + ' - ' + detail.name;
+                document.getElementById('detailTime').textContent = detail.analysis_time;
+                document.getElementById('detailAdvice').textContent = detail.operation_advice;
+                document.getElementById('detailScore').textContent = '评分: ' + detail.sentiment_score;
+                document.getElementById('detailTrend').textContent = detail.trend_prediction;
+                document.getElementById('detailSummary').textContent = detail.analysis_summary || '无';
+                document.getElementById('detailTechnical').textContent = detail.technical_analysis || '无';
+                document.getElementById('detailFundamental').textContent = detail.fundamental_analysis || '无';
+                document.getElementById('detailNews').textContent = detail.news_summary || '无';
+                document.getElementById('detailKeyPoints').textContent = detail.key_points || '无';
+                document.getElementById('detailRisk').textContent = detail.risk_warning || '无';
+
+                modal.classList.add('show');
+            } else {
+                alert('加载详情失败: ' + (data.error || '未知错误'));
+            }
+        })
+        .catch(err => alert('请求失败: ' + err.message));
+}
+
+function closeModal() {
+    document.getElementById('detailModal').classList.remove('show');
+}
+
+function filterByCode(code) {
+    // TODO: 实现按代码过滤
+    alert('按股票代码过滤: ' + code + ' (功能开发中)');
+}
+
+// 点击模态框背景关闭
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('detailModal');
+    if (e.target === modal) {
+        closeModal();
+    }
+});
+</script>
+"""
+
+    content = f"""
+  <div class="container">
+    <div class="history-header">
+      <h2 class="history-title">📊 分析历史</h2>
+      <div class="history-nav">
+        <a href="/">← 返回首页</a>
+      </div>
+    </div>
+
+    <div class="stock-tags">
+      <strong>已分析股票:</strong>
+      {stock_list_html or '<span class="text-muted">暂无</span>'}
+    </div>
+
+    <div class="history-list">
+      {history_items_html}
+    </div>
+  </div>
+
+  <!-- 详情模态框 -->
+  <div id="detailModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="detailCode">股票详情</h2>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="detail-meta">
+          <span class="meta-item"><span class="meta-label">时间:</span> <span class="meta-value" id="detailTime">-</span></span>
+          <span class="meta-item"><span class="meta-label">建议:</span> <span class="meta-value" id="detailAdvice">-</span></span>
+          <span class="meta-item" id="detailScore">-</span>
+          <span class="meta-item" id="detailTrend">-</span>
+        </div>
+
+        <div class="detail-section">
+          <h3>📝 综合分析</h3>
+          <p id="detailSummary">-</p>
+        </div>
+
+        <div class="detail-section">
+          <h3>📈 技术面</h3>
+          <p id="detailTechnical">-</p>
+        </div>
+
+        <div class="detail-section">
+          <h3>💼 基本面</h3>
+          <p id="detailFundamental">-</p>
+        </div>
+
+        <div class="detail-section">
+          <h3>📰 新闻摘要</h3>
+          <p id="detailNews">-</p>
+        </div>
+
+        <div class="detail-section">
+          <h3>🎯 核心看点</h3>
+          <p id="detailKeyPoints">-</p>
+        </div>
+
+        <div class="detail-section">
+          <h3>⚠️ 风险提示</h3>
+          <p id="detailRisk">-</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {extra_js}
+"""
+
+    page = render_base(
+        title="分析历史记录",
+        content=content,
+        extra_css=extra_css
     )
     return page.encode("utf-8")
