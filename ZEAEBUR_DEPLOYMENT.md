@@ -41,7 +41,7 @@
 | 变量名 | 值 | 说明 |
 |--------|----|----- |
 | `GEMINI_API_KEY` | `AIzaSyDTQw32SgbY-_IZp5CHPieWCQ72fI3ijGk` | Gemini API 密钥 |
-| `OPENAI_API_KEY` | `sk-342a63b3a5da48cea6df443341242bac` | OpenAI API 密钥 |
+| `OPENAI_API_KEY` | `你的DeepSeek API Key` | DeepSeek API 密钥（需自己获取） |
 | `OPENAI_BASE_URL` | `https://api.deepseek.com/v1` | DeepSeek API 地址 |
 | `OPENAI_MODEL` | `deepseek-chat` | DeepSeek 模型 |
 | `STOCK_LIST` | `600519,300750,002594` | 股票列表（可修改） |
