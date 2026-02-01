@@ -125,35 +125,44 @@ class PageHandler:
 
     def handle_futures(self) -> Response:
         """处理期货波动率监控页面 GET /futures"""
-        from src.futures_monitor import get_volatility_monitor
-        from web.services import get_data_provider_service
+        from src.futures_monitor import FuturesVolatilityMonitor
 
         try:
-            # 获取数据提供者
-            data_service = get_data_provider_service()
-            data_provider = data_service.get_provider()
+            # 创建监控器（不传入 data_provider，这样不会尝试获取实时数据）
+            monitor = FuturesVolatilityMonitor(data_provider=None)
 
-            # 创建监控器
-            monitor = get_volatility_monitor(data_provider)
+            # 获取默认监控标的列表
+            default_symbols = monitor.DEFAULT_SYMBOLS
 
-            # 获取所有默认标的的指标
-            symbols = list(monitor.DEFAULT_SYMBOLS.keys())
+            # 由于没有数据提供者，返回空结果（但页面会正常显示说明）
             results = []
-            for symbol in symbols:
-                name = monitor.DEFAULT_SYMBOLS.get(symbol, symbol)
-                metrics = monitor.analyze_symbol(symbol, name)
-                if metrics:
-                    results.append(metrics.to_dict())
+            extreme_dicts = []
 
-            # 获取极端风险标的
-            extreme_symbols = monitor.get_extreme_risk_symbols(symbols)
-            extreme_dicts = [m.to_dict() for m in extreme_symbols]
+            # 生成模拟数据用于演示（仅用于页面展示）
+            for symbol, name in default_symbols.items():
+                # 注意：这是模拟数据，仅用于页面结构展示
+                # 实际部署时需要配置正确的数据源
+                results.append({
+                    'symbol': symbol,
+                    'name': name,
+                    'current_price': 0.0,
+                    'iv_current': 0.0,
+                    'iv_percentile': 0.0,
+                    'hv_20d': 0.0,
+                    'iv_hv_divergence': 0.0,
+                    'risk_level': 'low',
+                    'timestamp': '暂无数据'
+                })
+
+            logger.info(f"[PageHandler] 期货监控页面已加载，共 {len(results)} 个标的（模拟数据）")
 
             body = render_futures_page(results, extreme_dicts)
             return HtmlResponse(body)
 
         except Exception as e:
             logger.error(f"[PageHandler] 获取期货监控数据失败: {e}")
+            import traceback
+            traceback.print_exc()
             # 返回空页面
             body = render_futures_page([], [])
             return HtmlResponse(body)
