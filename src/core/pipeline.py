@@ -184,7 +184,9 @@ class StockAnalysisPipeline:
                     key_points=cached_result.key_points,
                     confidence_level=cached_result.confidence_level,
                     risk_warning=cached_result.risk_warning,
-                    dashboard=cached_result.dashboard
+                    dashboard=cached_result.dashboard,
+                    cached=True,  # 标记为使用缓存
+                    cache_time=cache_time.isoformat()  # 缓存时间
                 )
             else:
                 # 缓存过期，清除
@@ -287,13 +289,19 @@ class StockAnalysisPipeline:
                         for result in response.results[:4]:  # 每个维度最多4条
                             # 使用 semantic_router 进行情绪分析
                             sentiment_result = None
+                            model_used = "Unknown"
                             try:
                                 sentiment_result = semantic_router.analyze(
                                     task_type=TaskType.NEWS_SENTIMENT,
                                     content=f"{result.title}. {result.snippet}"
                                 )
+                                if sentiment_result:
+                                    model_used = sentiment_result.model_used
+                                    logger.debug(f"[{code}] 新闻情绪分析成功: {sentiment_result.label} ({sentiment_result.score:.2f}), 模型: {model_used}")
                             except Exception as e:
-                                logger.warning(f"[{code}] 新闻情绪分析失败: {e}")
+                                logger.warning(f"[{code}] 新闻情绪分析失败 ({result.title[:30]}...): {e}，使用中性标签")
+                                # 失败时标记为使用通用 LLM
+                                model_used = "General LLM (fallback)"
 
                             # 确定情绪标签
                             sentiment_label = "⚪中性"
@@ -315,8 +323,20 @@ class StockAnalysisPipeline:
                                 'category': category,
                                 'sentiment_label': sentiment_label,
                                 'sentiment_score': sentiment_score_text,
-                                'model_used': sentiment_result.model_used if sentiment_result else None
+                                'model_used': model_used,
+                                # 用于排序的内部字段
+                                '_sentiment_value': sentiment_result.score if sentiment_result else 0,
+                                '_category_priority': self._get_category_priority(category)
                             })
+
+                    # 对新闻进行排序：优先显示重要新闻
+                    if news_list:
+                        news_list.sort(key=lambda x: (
+                            -x['_category_priority'],  # 类别优先级（风险第一）
+                            -abs(x['_sentiment_value']),  # 情绪强度（最强烈的优先）
+                            x['category']  # 相同优先级时按类别分组
+                        ))
+                        logger.info(f"[{code}] 新闻已排序: {len(news_list)} 条 (风险优先 -> 情绪强度)")
 
                     logger.info(f"[{code}] 新闻情绪分析完成: {len(news_list)} 条")
             else:
@@ -721,3 +741,22 @@ class StockAnalysisPipeline:
                 
         except Exception as e:
             logger.error(f"发送通知失败: {e}")
+
+    def _get_category_priority(self, category: str) -> int:
+        """
+        获取新闻分类的优先级（用于排序）
+
+        Args:
+            category: 新闻分类标签
+
+        Returns:
+            优先级数值（越大越重要）
+        """
+        priority_map = {
+            '⚠️ 风险排查': 100,  # 最高优先级：风险
+            '📰 最新消息': 80,   # 其次：最新消息
+            '📊 业绩预期': 70,   # 业绩信息
+            '📈 机构分析': 60,   # 机构观点
+            '🏭 行业分析': 50,   # 行业动态
+        }
+        return priority_map.get(category, 0)
