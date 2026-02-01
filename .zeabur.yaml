@@ -1,0 +1,19 @@
+# Zeabur 部署配置
+version: "1"
+
+# 服务配置
+services:
+  - name: webui
+    type: "Prebuilt"
+    # 启动命令（覆盖 Dockerfile CMD）
+    command: ["python", "start_webui.py"]
+    # 环境变量
+    env:
+      - name: WEBUI_ENABLED
+        value: "true"
+      - name: WEBUI_HOST
+        value: "0.0.0.0"
+      - name: WEBUI_PORT
+        value: "8000"
+      - name: SCHEDULE_ENABLED
+        value: "false"
