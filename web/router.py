@@ -304,6 +304,12 @@ def create_default_router() -> Router:
     )
 
     router.register(
+        "/subscription", "GET",
+        lambda q: page_handler.handle_subscription(),
+        "订阅监控"
+    )
+
+    router.register(
         "/update", "POST",
         lambda form: page_handler.handle_update(form),
         "更新配置"

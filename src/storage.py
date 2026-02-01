@@ -602,6 +602,24 @@ class DatabaseManager:
 
             return list(results)
 
+    def get_latest_analysis_by_code(self, code: str) -> Optional[AnalysisHistory]:
+        """
+        获取指定股票的最新分析记录
+
+        Args:
+            code: 股票代码
+
+        Returns:
+            最新的 AnalysisHistory 对象或 None
+        """
+        with self.get_session() as session:
+            return session.execute(
+                select(AnalysisHistory)
+                .where(AnalysisHistory.code == code)
+                .order_by(desc(AnalysisHistory.analysis_time))
+                .limit(1)
+            ).scalar_one_or_none()
+
     def get_analysis_by_id(self, analysis_id: int) -> Optional[AnalysisHistory]:
         """
         根据 ID 获取单条分析记录

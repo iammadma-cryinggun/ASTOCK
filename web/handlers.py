@@ -24,7 +24,7 @@ from datetime import datetime
 from typing import Dict, Any, TYPE_CHECKING
 
 from web.services import get_config_service, get_analysis_service
-from web.templates import render_config_page, render_futures_page
+from web.templates import render_config_page, render_futures_page, render_subscription_page
 from src.enums import ReportType
 
 if TYPE_CHECKING:
@@ -156,6 +156,56 @@ class PageHandler:
             logger.error(f"[PageHandler] 获取期货监控数据失败: {e}")
             # 返回空页面
             body = render_futures_page([], [])
+            return HtmlResponse(body)
+
+    def handle_subscription(self) -> Response:
+        """处理订阅监控页面 GET /subscription"""
+        from src.storage import DatabaseManager
+
+        try:
+            db = DatabaseManager.get_instance()
+
+            # 获取订阅列表（从配置中获取）
+            stock_list = self.config_service.get_stock_list()
+            subscription_list = []
+
+            # 获取每只股票的最新分析结果
+            for code in stock_list.split(',')[:20]:  # 最多20只
+                code = code.strip()
+                if not code:
+                    continue
+
+                # 获取最新的分析记录
+                latest = db.get_latest_analysis_by_code(code)
+                if latest:
+                    # 判断建议类型
+                    advice = latest.operation_advice or '观望'
+                    if '买' in advice:
+                        advice_class = 'buy'
+                    elif '卖' in advice:
+                        advice_class = 'sell'
+                    elif '持有' in advice:
+                        advice_class = 'hold'
+                    else:
+                        advice_class = 'wait'
+
+                    subscription_list.append({
+                        'code': code,
+                        'name': latest.name or f'股票{code}',
+                        'active': True,
+                        'last_update': latest.analysis_time.strftime('%Y-%m-%d %H:%M') if latest.analysis_time else '-',
+                        'advice': advice,
+                        'advice_class': advice_class,
+                        'score': latest.sentiment_score or 0
+                    })
+
+            body = render_subscription_page(subscription_list)
+            return HtmlResponse(body)
+
+        except Exception as e:
+            logger.error(f"[PageHandler] 获取订阅数据失败: {e}")
+            # 返回空列表
+            body = render_subscription_page([])
             return HtmlResponse(body)
 
     def handle_update(self, form_data: Dict[str, list]) -> Response:
