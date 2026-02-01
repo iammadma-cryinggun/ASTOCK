@@ -7,6 +7,10 @@ services:
     type: "Prebuilt"
     # 启动命令（覆盖 Dockerfile CMD）
     command: ["python", "start_webui.py"]
+    # 端口映射：容器内部 8000 -> Zeabur 外部 8080
+    ports:
+      - port: 8080
+        targetPort: 8000
     # 环境变量
     env:
       - name: WEBUI_ENABLED
