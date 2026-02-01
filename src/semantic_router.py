@@ -73,7 +73,9 @@ class FinBERTClient:
             api_key: Hugging Face API Key（可选，免费版有限制）
         """
         self.api_key = api_key
-        self.api_url = "https://api-inference.huggingface.co/models/chtma/finbert-chinese"
+        # 使用可用的中文金融情绪分析模型
+        # 模型信息：https://huggingface.co/yiyanghkust/finbert-tone-chinese
+        self.api_url = "https://api-inference.huggingface.co/models/yiyanghkust/finbert-tone-chinese"
         self.is_available = bool(api_key)
 
         if self.is_available:
