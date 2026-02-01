@@ -75,7 +75,9 @@ class FinBERTClient:
         self.api_key = api_key
         # 模型 URL（Transformers 模式下不需要）
         self.api_url = None
-        self.model_id = "chtma/finbert-chinese"
+        # 使用可用的中文金融情绪分析模型
+        # https://huggingface.co/yiyanghkust/finbert-tone-chinese
+        self.model_id = "yiyanghkust/finbert-tone-chinese"
         self._pipeline = None
         # Transformers 模式：直接加载模型，不需要 API Key
         self.is_available = True  # 总是尝试加载
