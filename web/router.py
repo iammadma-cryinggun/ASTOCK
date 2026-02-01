@@ -21,7 +21,8 @@ from web.handlers import (
     Response, HtmlResponse, JsonResponse,
     get_page_handler, get_api_handler, get_bot_handler
 )
-from web.templates import render_error_page, render_history_page
+from web.templates import render_error_page
+# render_history_page 延迟导入，避免循环导入
 
 if TYPE_CHECKING:
     from http.server import BaseHTTPRequestHandler
