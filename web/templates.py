@@ -1513,7 +1513,7 @@ def render_history_page(history: list = None, stock_list: list = None) -> bytes:
         time_str = item.get("analysis_time", "")[:16] if item.get("analysis_time") else ""
 
         history_cards += f"""
-        <div class="subscription-card" onclick="showDetail({item.get('id')})" style="cursor: pointer;">
+        <div class="subscription-card" style="cursor: pointer;">
           <div class="subscription-header">
             <div>
               <span class="subscription-code">{html.escape(item.get('code', ''))}</span>
