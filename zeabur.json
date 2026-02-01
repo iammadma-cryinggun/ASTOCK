@@ -1,0 +1,27 @@
+{
+  "name": "astock-webui",
+  "services": [
+    {
+      "name": "webui",
+      "dockerfile": "Dockerfile.zeabur",
+      "env": [
+        {
+          "name": "WEBUI_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "WEBUI_HOST",
+          "value": "0.0.0.0"
+        },
+        {
+          "name": "WEBUI_PORT",
+          "value": "8000"
+        },
+        {
+          "name": "SCHEDULE_ENABLED",
+          "value": "false"
+        }
+      ]
+    }
+  ]
+}
