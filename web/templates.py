@@ -1,13 +1,18 @@
 # -*- coding: utf-8 -*-
 """
 ===================================
-Web 模板层 - HTML 页面生成
+Web 模板层 - HTML 页面生成 (重构版)
 ===================================
 
 职责：
 1. 生成 HTML 页面
 2. 管理 CSS 样式
 3. 提供可复用的页面组件
+
+新架构设计：
+- 三个主要板块：查询、订阅、期货
+- 清晰展示报告类型差异
+- 展示数据来源和分析逻辑
 """
 
 from __future__ import annotations
@@ -42,48 +47,95 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background-color: var(--bg);
     color: var(--text);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
     margin: 0;
+    padding: 0;
+}
+
+/* 布局容器 */
+.app-container {
+    max-width: 1200px;
+    margin: 0 auto;
     padding: 20px;
 }
 
-.container {
+/* 导航栏 */
+.navbar {
     background: var(--card);
-    padding: 2rem;
+    padding: 1rem 2rem;
     border-radius: 1rem;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    width: 100%;
-    max-width: 500px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-h2 {
-    margin-top: 0;
-    color: var(--text);
+.navbar-brand {
     font-size: 1.5rem;
     font-weight: 700;
+    color: var(--text);
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
-.subtitle {
+.navbar-nav {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.nav-link {
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
     color: var(--text-light);
     font-size: 0.875rem;
-    margin-bottom: 2rem;
-    line-height: 1.5;
+    transition: all 0.2s;
+    background: transparent;
+    border: 1px solid transparent;
 }
 
-.code-badge {
-    background: #f1f5f9;
-    padding: 0.2rem 0.4rem;
-    border-radius: 0.25rem;
-    font-family: monospace;
+.nav-link:hover {
     color: var(--primary);
+    background: rgba(37, 99, 235, 0.05);
 }
 
+.nav-link.active {
+    color: var(--primary);
+    background: rgba(37, 99, 235, 0.1);
+    border-color: var(--primary);
+    font-weight: 500;
+}
+
+/* 卡片 */
+.card {
+    background: var(--card);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text);
+}
+
+.card-body {
+    color: var(--text-light);
+    line-height: 1.6;
+}
+
+/* 表单元素 */
 .form-group {
     margin-bottom: 1.5rem;
 }
@@ -93,21 +145,19 @@ label {
     margin-bottom: 0.5rem;
     font-weight: 500;
     color: var(--text);
+    font-size: 0.875rem;
 }
 
-textarea, input[type="text"] {
+input[type="text"], select, textarea {
     width: 100%;
     padding: 0.75rem;
     border: 1px solid var(--border);
     border-radius: 0.5rem;
-    font-family: monospace;
     font-size: 0.875rem;
-    line-height: 1.5;
-    resize: vertical;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: all 0.2s;
 }
 
-textarea:focus, input[type="text"]:focus {
+input[type="text"]:focus, select:focus, textarea:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
@@ -122,8 +172,7 @@ button {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
-    width: 100%;
-    font-size: 1rem;
+    font-size: 0.875rem;
 }
 
 button:hover {
@@ -135,6 +184,12 @@ button:active {
     transform: translateY(0);
 }
 
+button:disabled {
+    background-color: var(--text-light);
+    cursor: not-allowed;
+    transform: none;
+}
+
 .btn-secondary {
     background-color: var(--text-light);
 }
@@ -143,80 +198,20 @@ button:active {
     background-color: var(--text);
 }
 
-.footer {
-    margin-top: 2rem;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
-    color: var(--text-light);
-    font-size: 0.75rem;
-    text-align: center;
+.btn-success {
+    background-color: var(--success);
 }
 
-/* Toast Notification */
-.toast {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%) translateY(100px);
-    background: white;
-    border-left: 4px solid var(--success);
-    padding: 1rem 1.5rem;
-    border-radius: 0.5rem;
-    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    opacity: 0;
-    z-index: 1000;
+.btn-success:hover {
+    background-color: #059669;
 }
 
-.toast.show {
-    transform: translateX(-50%) translateY(0);
-    opacity: 1;
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
 }
 
-.toast.error {
-    border-left-color: var(--error);
-}
-
-.toast.warning {
-    border-left-color: var(--warning);
-}
-
-/* Helper classes */
-.text-muted {
-    font-size: 0.75rem;
-    color: var(--text-light);
-    margin-top: 0.5rem;
-}
-
-.mt-2 { margin-top: 0.5rem; }
-.mt-4 { margin-top: 1rem; }
-.mb-2 { margin-bottom: 0.5rem; }
-.mb-4 { margin-bottom: 1rem; }
-
-/* Section divider */
-.section-divider {
-    margin: 2rem 0;
-    border: none;
-    border-top: 1px solid var(--border);
-}
-
-/* Analysis section */
-.analysis-section {
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--border);
-}
-
-.analysis-section h3 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    color: var(--text);
-}
-
+/* 输入组 */
 .input-group {
     display: flex;
     gap: 0.5rem;
@@ -224,101 +219,54 @@ button:active {
 
 .input-group input {
     flex: 1;
-    resize: none;
 }
 
-.input-group button {
-    width: auto;
-    padding: 0.75rem 1.25rem;
-    white-space: nowrap;
+/* 报告类型选择器 */
+.report-type-selector {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
 }
 
-.report-select {
-    padding: 0.75rem 0.5rem;
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    font-size: 0.8rem;
-    background: white;
-    color: var(--text);
-    cursor: pointer;
-    min-width: 110px;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.report-select:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-.btn-analysis {
-    background-color: var(--success);
-}
-
-.btn-analysis:hover {
-    background-color: #059669;
-}
-
-.btn-analysis:disabled {
-    background-color: var(--text-light);
-    cursor: not-allowed;
-    transform: none;
-}
-
-/* Result box */
-.result-box {
-    margin-top: 1rem;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
+.report-type-radio {
     display: none;
 }
 
-.result-box.show {
+.report-type-label {
+    flex: 1;
+    padding: 0.75rem;
+    border: 2px solid var(--border);
+    border-radius: 0.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.report-type-label:hover {
+    border-color: var(--primary);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.report-type-radio:checked + .report-type-label {
+    border-color: var(--primary);
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.report-type-description {
     display: block;
+    font-size: 0.75rem;
+    color: var(--text-light);
+    margin-top: 0.25rem;
 }
 
-.result-box.success {
-    background-color: #ecfdf5;
-    border: 1px solid #a7f3d0;
-    color: #065f46;
-}
-
-.result-box.error {
-    background-color: #fef2f2;
-    border: 1px solid #fecaca;
-    color: #991b1b;
-}
-
-.result-box.loading {
-    background-color: #eff6ff;
-    border: 1px solid #bfdbfe;
-    color: #1e40af;
-}
-
-.spinner {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border: 2px solid currentColor;
-    border-right-color: transparent;
-    border-radius: 50%;
-    animation: spin 0.75s linear infinite;
-    margin-right: 0.5rem;
-    vertical-align: middle;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* Task List Container */
+/* 任务列表 */
 .task-list {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    max-height: 400px;
-    overflow-y: auto;
+    gap: 0.75rem;
 }
 
 .task-list:empty::after {
@@ -326,26 +274,24 @@ button:active {
     display: block;
     text-align: center;
     color: var(--text-light);
-    font-size: 0.8rem;
-    padding: 1rem;
+    font-size: 0.875rem;
+    padding: 2rem;
 }
 
-/* Task Card - Compact */
 .task-card {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.6rem 0.75rem;
+    gap: 1rem;
+    padding: 1rem;
     background: var(--bg);
-    border-radius: 0.5rem;
+    border-radius: 0.75rem;
     border: 1px solid var(--border);
-    font-size: 0.8rem;
     transition: all 0.2s;
 }
 
 .task-card:hover {
     border-color: var(--primary);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 .task-card.running {
@@ -363,16 +309,14 @@ button:active {
     background: linear-gradient(135deg, #fef2f2 0%, #f8fafc 100%);
 }
 
-/* Task Status Icon */
 .task-status {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
     flex-shrink: 0;
-    font-size: 0.9rem;
 }
 
 .task-card.running .task-status {
@@ -390,71 +334,51 @@ button:active {
     color: white;
 }
 
-.task-card.pending .task-status {
-    background: var(--border);
-    color: var(--text-light);
-}
-
-/* Task Main Info */
 .task-main {
     flex: 1;
     min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
 }
 
-.task-title {
+.task-header {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-weight: 600;
-    color: var(--text);
+    margin-bottom: 0.25rem;
 }
 
-.task-title .code {
+.task-code {
     font-family: monospace;
-    background: rgba(0,0,0,0.05);
-    padding: 0.1rem 0.3rem;
+    font-weight: 600;
+    color: var(--primary);
+    background: white;
+    padding: 0.15rem 0.4rem;
     border-radius: 0.25rem;
 }
 
-.task-title .name {
+.task-name {
     color: var(--text-light);
-    font-weight: 400;
-    font-size: 0.75rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-size: 0.875rem;
 }
 
 .task-meta {
     display: flex;
-    gap: 0.75rem;
-    font-size: 0.7rem;
+    gap: 1rem;
+    font-size: 0.75rem;
     color: var(--text-light);
 }
 
-.task-meta span {
-    display: flex;
-    align-items: center;
-    gap: 0.2rem;
-}
-
-/* Task Result Badge */
 .task-result {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 0.15rem;
-    flex-shrink: 0;
+    gap: 0.25rem;
 }
 
 .task-advice {
-    font-weight: 600;
-    font-size: 0.75rem;
-    padding: 0.15rem 0.4rem;
+    padding: 0.25rem 0.5rem;
     border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
     background: var(--primary);
     color: white;
 }
@@ -465,25 +389,23 @@ button:active {
 .task-advice.wait { background: #6b7280; }
 
 .task-score {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: var(--text-light);
 }
 
-/* Task Actions */
 .task-actions {
     display: flex;
     gap: 0.25rem;
-    flex-shrink: 0;
 }
 
 .task-btn {
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     padding: 0;
-    border-radius: 0.25rem;
+    border-radius: 0.375rem;
     background: transparent;
     color: var(--text-light);
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -495,80 +417,226 @@ button:active {
     transform: none;
 }
 
-/* Spinner in task */
-.task-card .spinner {
-    width: 12px;
-    height: 12px;
-    border-width: 1.5px;
-    margin: 0;
+/* Spinner */
+.spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
 }
 
-/* Empty state hint */
-.task-hint {
-    text-align: center;
-    padding: 0.75rem;
-    color: var(--text-light);
-    font-size: 0.75rem;
-    background: var(--bg);
-    border-radius: 0.375rem;
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
-/* Task detail expand */
-.task-detail {
-    display: none;
-    padding: 0.5rem 0.75rem;
-    padding-left: 3rem;
-    background: rgba(0,0,0,0.02);
-    border-radius: 0 0 0.5rem 0.5rem;
-    margin-top: -0.5rem;
-    font-size: 0.75rem;
+/* 订阅列表 */
+.subscription-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.subscription-card {
+    padding: 1rem;
     border: 1px solid var(--border);
-    border-top: none;
+    border-radius: 0.75rem;
+    transition: all 0.2s;
 }
 
-.task-detail.show {
-    display: block;
+.subscription-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-.task-detail-row {
+.subscription-header {
     display: flex;
     justify-content: space-between;
-    padding: 0.25rem 0;
+    align-items: center;
+    margin-bottom: 0.75rem;
 }
 
-.task-detail-row .label {
+.subscription-code {
+    font-family: monospace;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.subscription-status {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    background: var(--border);
+}
+
+.subscription-status.active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.subscription-status.inactive {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.subscription-body {
+    font-size: 0.875rem;
     color: var(--text-light);
 }
 
-.task-detail-summary {
-    margin-top: 0.5rem;
-    padding: 0.5rem;
-    background: white;
-    border-radius: 0.25rem;
-    line-height: 1.4;
+/* 期货监控 */
+.futures-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
 }
+
+.futures-card {
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    transition: all 0.2s;
+}
+
+.futures-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.futures-card.risk-low { background: #ecfdf5; border-color: #10b981; }
+.futures-card.risk-medium { background: #fef3c7; border-color: #f59e0b; }
+.futures-card.risk-high { background: #fed7aa; border-color: #f97316; }
+.futures-card.risk-extreme { background: #fee2e2; border-color: #ef4444; }
+
+.futures-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.futures-symbol {
+    font-family: monospace;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.futures-price {
+    font-weight: 600;
+}
+
+.futures-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.futures-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.futures-label {
+    font-size: 0.7rem;
+    color: var(--text-light);
+}
+
+.futures-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.futures-risk {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.risk-badge {
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* 底部信息 */
+.footer {
+    text-align: center;
+    color: var(--text-light);
+    font-size: 0.75rem;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-light);
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.empty-state-text {
+    font-size: 0.875rem;
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: white;
+    border-left: 4px solid var(--success);
+    padding: 1rem 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: all 0.3s;
+    opacity: 0;
+    z-index: 1000;
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.toast.error { border-left-color: var(--error); }
+.toast.warning { border-left-color: var(--warning); }
+
+/* 辅助类 */
+.text-muted { color: var(--text-light); font-size: 0.875rem; }
+.text-center { text-align: center; }
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-4 { margin-top: 1rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-4 { margin-bottom: 1rem; }
 """
 
 
 # ============================================================
-# 页面模板
+# 辅助函数
 # ============================================================
 
-def render_base(
-    title: str,
-    content: str,
-    extra_css: str = "",
-    extra_js: str = ""
-) -> str:
-    """
-    渲染基础 HTML 模板
-    
-    Args:
-        title: 页面标题
-        content: 页面内容 HTML
-        extra_css: 额外的 CSS 样式
-        extra_js: 额外的 JavaScript
-    """
+def render_base(title: str, content: str, extra_css: str = "", extra_js: str = "") -> bytes:
+    """渲染基础 HTML 模板"""
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -581,36 +649,52 @@ def render_base(
   {content}
   {extra_js}
 </body>
-</html>"""
+</html>""".encode("utf-8")
+
+
+def render_navbar(active: str = "query") -> str:
+    """渲染导航栏"""
+    nav_items = {
+        "query": ("🔍 查询分析", "/"),
+        "subscription": ("📋 订阅监控", "/subscription"),
+        "futures": ("📊 期货监控", "/futures"),
+        "history": ("📜 历史记录", "/history"),
+    }
+
+    nav_links = []
+    for key, (text, href) in nav_items.items():
+        active_class = "active" if key == active else ""
+        nav_links.append(f'<a class="nav-link {active_class}" href="{href}">{text}</a>')
+
+    return f"""
+    <nav class="navbar">
+      <div class="navbar-brand">📈 智能股票分析</div>
+      <div class="navbar-nav">
+        {''.join(nav_links)}
+      </div>
+    </nav>
+    """
 
 
 def render_toast(message: str, toast_type: str = "success") -> str:
-    """
-    渲染 Toast 通知
-    
-    Args:
-        message: 通知消息
-        toast_type: 类型 (success, error, warning)
-    """
-    icon_map = {
-        "success": "✅",
-        "error": "❌",
-        "warning": "⚠️"
-    }
+    """渲染 Toast 通知"""
+    icon_map = {"success": "✅", "error": "❌", "warning": "⚠️"}
     icon = icon_map.get(toast_type, "ℹ️")
     type_class = f" {toast_type}" if toast_type != "success" else ""
-    
+
     return f"""
     <div id="toast" class="toast show{type_class}">
         <span class="icon">{icon}</span> {html.escape(message)}
     </div>
     <script>
-        setTimeout(() => {{
-            document.getElementById('toast').classList.remove('show');
-        }}, 3000);
+        setTimeout(() => document.getElementById('toast').classList.remove('show'), 3000);
     </script>
     """
 
+
+# ============================================================
+# 页面模板
+# ============================================================
 
 def render_config_page(
     stock_list: str,
@@ -618,70 +702,61 @@ def render_config_page(
     message: Optional[str] = None
 ) -> bytes:
     """
-    渲染配置页面
-    
-    Args:
-        stock_list: 当前自选股列表
-        env_filename: 环境文件名
-        message: 可选的提示消息
+    渲染查询分析页面（重构版）
+
+    三个板块：查询、订阅、期货
     """
     safe_value = html.escape(stock_list)
     toast_html = render_toast(message) if message else ""
-    
-    # 分析组件的 JavaScript - 支持多任务
+
+    # 分析组件的 JavaScript
     analysis_js = """
 <script>
 (function() {
     const codeInput = document.getElementById('analysis_code');
     const submitBtn = document.getElementById('analysis_btn');
     const taskList = document.getElementById('task_list');
-    const reportTypeSelect = document.getElementById('report_type');
-    
-    // 任务管理
-    const tasks = new Map(); // taskId -> {task, pollCount}
+
+    const tasks = new Map();
     let pollInterval = null;
-    const MAX_POLL_COUNT = 120; // 6 分钟超时：120 * 3000ms = 360000ms
+    const MAX_POLL_COUNT = 120;
     const POLL_INTERVAL_MS = 3000;
-    const MAX_TASKS_DISPLAY = 10;
-    
-    // 允许输入数字和字母和点（支持港股 HKxxxxx 格式 美股AAPL/BRK.B）
+    const MAX_TASKS_DISPLAY = 15;
+
+    // 获取报告类型
+    function getReportType() {
+        return document.querySelector('input[name="report_type"]:checked').value;
+    }
+
+    // 输入验证
     codeInput.addEventListener('input', function(e) {
-        // 转大写，只保留字母和数字和点
         this.value = this.value.toUpperCase().replace(/[^A-Z0-9.]/g, '');
         if (this.value.length > 8) {
             this.value = this.value.slice(0, 8);
         }
         updateButtonState();
     });
-    
-    // 回车提交
+
     codeInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            if (!submitBtn.disabled) {
-                submitAnalysis();
-            }
+        if (e.key === 'Enter' && !submitBtn.disabled) {
+            submitAnalysis();
         }
     });
-    
-    // 更新按钮状态 - 支持 A股(6位数字) 或 港股(HK+5位数字)
+
     function updateButtonState() {
         const code = codeInput.value.trim();
-        const isAStock = /^\\d{6}$/.test(code);           // A股: 600519
-        const isHKStock = /^HK\\d{5}$/.test(code);        // 港股: HK00700
-        const isUSStock =  /^[A-Z]{1,5}(\.[A-Z]{1,2})?$/.test(code); // 美股: AAPL
-
+        const isAStock = /^\\d{6}$/.test(code);
+        const isHKStock = /^HK\\d{5}$/.test(code);
+        const isUSStock = /^[A-Z]{1,5}(\\.[A-Z]{1,2})?$/.test(code);
         submitBtn.disabled = !(isAStock || isHKStock || isUSStock);
     }
-    
-    // 格式化时间
+
     function formatTime(isoString) {
         if (!isoString) return '-';
         const date = new Date(isoString);
-        return date.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+        return date.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
     }
-    
-    // 计算耗时
+
     function calcDuration(start, end) {
         if (!start) return '-';
         const startTime = new Date(start).getTime();
@@ -692,8 +767,7 @@ def render_config_page(
         const remainSec = seconds % 60;
         return minutes + 'm' + remainSec + 's';
     }
-    
-    // 获取建议样式类
+
     function getAdviceClass(advice) {
         if (!advice) return '';
         if (advice.includes('买') || advice.includes('加仓')) return 'buy';
@@ -701,45 +775,36 @@ def render_config_page(
         if (advice.includes('持有')) return 'hold';
         return 'wait';
     }
-    
-    // 渲染单个任务卡片
+
     function renderTaskCard(taskId, taskData) {
         const task = taskData.task || {};
         const status = task.status || 'pending';
         const code = task.code || taskId.split('_')[0];
         const result = task.result || {};
-        
+
         let statusIcon = '⏳';
         let statusText = '等待中';
         if (status === 'running') { statusIcon = '<span class="spinner"></span>'; statusText = '分析中'; }
         else if (status === 'completed') { statusIcon = '✓'; statusText = '完成'; }
         else if (status === 'failed') { statusIcon = '✗'; statusText = '失败'; }
-        
+
         let resultHtml = '';
         if (status === 'completed' && result.operation_advice) {
             const adviceClass = getAdviceClass(result.operation_advice);
             resultHtml = '<div class="task-result">' +
                 '<span class="task-advice ' + adviceClass + '">' + result.operation_advice + '</span>' +
-                '<span class="task-score">' + (result.sentiment_score || '-') + '分</span>' +
+                '<span class="task-score">评分: ' + (result.sentiment_score || '-') + '</span>' +
                 '</div>';
         } else if (status === 'failed') {
             resultHtml = '<div class="task-result"><span class="task-advice sell">失败</span></div>';
         }
-        
-        let detailHtml = '';
-        if (status === 'completed') {
-            detailHtml = '<div class="task-detail" id="detail_' + taskId + '">' +
-                '<div class="task-detail-row"><span class="label">趋势</span><span>' + (result.trend_prediction || '-') + '</span></div>' +
-                (result.analysis_summary ? '<div class="task-detail-summary">' + result.analysis_summary.substring(0, 100) + '...</div>' : '') +
-                '</div>';
-        }
-        
-        return '<div class="task-card ' + status + '" id="task_' + taskId + '" onclick="toggleDetail(\\''+taskId+'\\')">' +
+
+        return '<div class="task-card ' + status + '" id="task_' + taskId + '">' +
             '<div class="task-status">' + statusIcon + '</div>' +
             '<div class="task-main">' +
-                '<div class="task-title">' +
-                    '<span class="code">' + code + '</span>' +
-                    '<span class="name">' + (result.name || code) + '</span>' +
+                '<div class="task-header">' +
+                    '<span class="task-code">' + code + '</span>' +
+                    '<span class="task-name">' + (result.name || code) + '</span>' +
                 '</div>' +
                 '<div class="task-meta">' +
                     '<span>⏱ ' + formatTime(task.start_time) + '</span>' +
@@ -749,65 +814,54 @@ def render_config_page(
             '</div>' +
             resultHtml +
             '<div class="task-actions">' +
-                '<button class="task-btn" onclick="event.stopPropagation();removeTask(\\''+taskId+'\\')">×</button>' +
+                '<button class="task-btn" onclick="removeTask(\\''+taskId+'\\')">×</button>' +
             '</div>' +
-        '</div>' + detailHtml;
+        '</div>';
     }
-    
-    // 渲染所有任务
+
     function renderAllTasks() {
         if (tasks.size === 0) {
-            taskList.innerHTML = '<div class="task-hint">💡 输入股票代码开始分析</div>';
+            taskList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-text">输入股票代码开始分析</div></div>';
             return;
         }
-        
+
         let html = '';
         const sortedTasks = Array.from(tasks.entries())
             .sort((a, b) => (b[1].task?.start_time || '').localeCompare(a[1].task?.start_time || ''));
-        
+
         sortedTasks.slice(0, MAX_TASKS_DISPLAY).forEach(([taskId, taskData]) => {
             html += renderTaskCard(taskId, taskData);
         });
-        
+
         if (sortedTasks.length > MAX_TASKS_DISPLAY) {
-            html += '<div class="task-hint">... 还有 ' + (sortedTasks.length - MAX_TASKS_DISPLAY) + ' 个任务</div>';
+            html += '<div class="text-center text-muted mt-2">... 还有 ' + (sortedTasks.length - MAX_TASKS_DISPLAY) + ' 个任务</div>';
         }
-        
+
         taskList.innerHTML = html;
     }
-    
-    // 切换详情显示
-    window.toggleDetail = function(taskId) {
-        const detail = document.getElementById('detail_' + taskId);
-        if (detail) {
-            detail.classList.toggle('show');
-        }
-    };
-    
-    // 移除任务
+
     window.removeTask = function(taskId) {
         tasks.delete(taskId);
         renderAllTasks();
         checkStopPolling();
     };
-    
-    // 轮询所有运行中的任务
+
     function pollAllTasks() {
         let hasRunning = false;
-        
+
         tasks.forEach((taskData, taskId) => {
             const status = taskData.task?.status;
             if (status === 'running' || status === 'pending' || !status) {
                 hasRunning = true;
                 taskData.pollCount = (taskData.pollCount || 0) + 1;
-                
+
                 if (taskData.pollCount > MAX_POLL_COUNT) {
                     taskData.task = taskData.task || {};
                     taskData.task.status = 'failed';
                     taskData.task.error = '轮询超时';
                     return;
                 }
-                
+
                 fetch('/task?id=' + encodeURIComponent(taskId))
                     .then(r => r.json())
                     .then(data => {
@@ -819,13 +873,12 @@ def render_config_page(
                     .catch(() => {});
             }
         });
-        
+
         if (!hasRunning) {
             checkStopPolling();
         }
     }
-    
-    // 检查是否需要停止轮询
+
     function checkStopPolling() {
         let hasRunning = false;
         tasks.forEach((taskData) => {
@@ -834,35 +887,33 @@ def render_config_page(
                 hasRunning = true;
             }
         });
-        
+
         if (!hasRunning && pollInterval) {
             clearInterval(pollInterval);
             pollInterval = null;
         }
     }
-    
-    // 开始轮询
+
     function startPolling() {
         if (!pollInterval) {
             pollInterval = setInterval(pollAllTasks, POLL_INTERVAL_MS);
         }
     }
-    
-    // 提交分析
+
     window.submitAnalysis = function() {
         const code = codeInput.value.trim();
-        const isAStock = /^\d{6}$/.test(code);
-        const isHKStock = /^HK\d{5}$/.test(code);
-        const isUSStock = /^[A-Z]{1,5}(\.[A-Z]{1,2})?$/.test(code);
+        const isAStock = /^\\d{6}$/.test(code);
+        const isHKStock = /^HK\\d{5}$/.test(code);
+        const isUSStock = /^[A-Z]{1,5}(\\.[A-Z]{1,2})?$/.test(code);
 
         if (!(isAStock || isHKStock || isUSStock)) {
             return;
         }
-        
+
         submitBtn.disabled = true;
         submitBtn.textContent = '提交中...';
 
-        const reportType = reportTypeSelect.value;
+        const reportType = getReportType();
         fetch('/analysis?code=' + encodeURIComponent(code) + '&report_type=' + encodeURIComponent(reportType))
             .then(response => response.json())
             .then(data => {
@@ -877,12 +928,11 @@ def render_config_page(
                         },
                         pollCount: 0
                     });
-                    
+
                     renderAllTasks();
                     startPolling();
                     codeInput.value = '';
-                    
-                    // 立即轮询一次
+
                     setTimeout(() => {
                         fetch('/task?id=' + encodeURIComponent(taskId))
                             .then(r => r.json())
@@ -902,560 +952,240 @@ def render_config_page(
             })
             .finally(() => {
                 submitBtn.disabled = false;
-                submitBtn.textContent = '🚀 分析';
+                submitBtn.textContent = '🚀 开始分析';
                 updateButtonState();
             });
     };
-    
-    // 初始化
+
     updateButtonState();
     renderAllTasks();
 })();
 </script>
 """
-    
+
     content = f"""
-  <div class="container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-      <h2 style="margin: 0;">📈 A股/港股/美股分析</h2>
-      <div style="display: flex; gap: 1rem;">
-        <a href="/futures" style="color: var(--primary); text-decoration: none; font-size: 0.875rem;">📊 期货监控</a>
-        <a href="/history" style="color: var(--primary); text-decoration: none; font-size: 0.875rem;">📜 历史记录</a>
-      </div>
-    </div>
-    
-    <!-- 快速分析区域 -->
-    <div class="analysis-section" style="margin-top: 0; padding-top: 0; border-top: none;">
-      <div class="form-group" style="margin-bottom: 0.75rem;">
-        <div class="input-group">
-          <input 
-              type="text" 
-              id="analysis_code" 
-              placeholder="A股 600519 / 港股 HK00700 / 美股 AAPL"
-              maxlength="8"
-              autocomplete="off"
-          />
-          <select id="report_type" class="report-select" title="选择报告类型">
-            <option value="simple">📝 精简报告</option>
-            <option value="full">📊 完整报告</option>
-          </select>
-          <button type="button" id="analysis_btn" class="btn-analysis" onclick="submitAnalysis()" disabled>
-            🚀 分析
-          </button>
+  <div class="app-container">
+    {render_navbar("query")}
+
+    <!-- 主内容区域：两列布局 -->
+    <div style="display: grid; grid-template-columns: 1fr 350px; gap: 1.5rem; align-items: start;">
+      <!-- 左侧：快速分析 -->
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">🔍 快速分析</h2>
+          </div>
+          <div class="card-body">
+            <!-- 报告类型选择 -->
+            <div class="form-group">
+              <label>选择报告类型</label>
+              <div class="report-type-selector">
+                <input type="radio" name="report_type" id="report_simple" value="simple" class="report-type-radio" checked>
+                <label for="report_simple" class="report-type-label">
+                  📝 精简报告
+                  <span class="report-type-description">核心结论 + 关键数据 + 操作建议</span>
+                </label>
+
+                <input type="radio" name="report_type" id="report_full" value="full" class="report-type-radio">
+                <label for="report_full" class="report-type-label">
+                  📊 完整报告
+                  <span class="report-type-description">决策仪表盘 + 数据透视 + 情报分析</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 代码输入 -->
+            <div class="form-group" style="margin-bottom: 1rem;">
+              <label for="analysis_code">股票代码</label>
+              <div class="input-group">
+                <input
+                    type="text"
+                    id="analysis_code"
+                    placeholder="A股 600519 / 港股 HK00700 / 美股 AAPL"
+                    maxlength="8"
+                    autocomplete="off"
+                />
+                <button type="button" id="analysis_btn" class="btn-success" onclick="submitAnalysis()" disabled>
+                  🚀 开始分析
+                </button>
+              </div>
+              <p class="text-muted mt-1">支持 A股(6位数字)、港股(HK+5位)、美股(1-5个字母)</p>
+            </div>
+
+            <!-- 任务列表 -->
+            <div id="task_list" class="task-list"></div>
+          </div>
+        </div>
+
+        <!-- 数据来源说明 -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title" style="font-size: 1rem;">📊 数据来源与分析逻辑</h3>
+          </div>
+          <div class="card-body">
+            <div style="font-size: 0.875rem; line-height: 1.8;">
+              <p><strong>📈 技术面数据：</strong>AkShare/Tushare/Yahoo Finance</p>
+              <p><strong>📰 新闻数据：</strong>Tavily/SerpAPI/Bocha (实时搜索)</p>
+              <p><strong>🤖 AI 分析：</strong>Google Gemini / OpenAI 兼容 API</p>
+              <p><strong>💡 语义分析：</strong>FinBERT-Chinese (新闻情绪评分)</p>
+              <hr style="border: none; border-top: 1px solid var(--border); margin: 1rem 0;">
+              <p><strong>报告类型说明：</strong></p>
+              <ul style="margin: 0.5rem 0; padding-left: 1.25rem;">
+                <li><strong>精简报告</strong>：快速查看核心结论、买卖点位、操作建议</li>
+                <li><strong>完整报告</strong>：深度分析技术面/基本面/消息面，包含决策仪表盘、数据透视、情报分析、作战计划</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
-      
-      <!-- 任务列表 -->
-      <div id="task_list" class="task-list"></div>
-    </div>
-    
-    <hr class="section-divider">
-    
-    <!-- 自选股配置区域 -->
-    <form method="post" action="/update">
-      <div class="form-group">
-        <label for="stock_list">📋 自选股列表 <span class="code-badge">{html.escape(env_filename)}</span></label>
-        <p>仅用于本地环境 (127.0.0.1) • 安全修改 .env 配置</p>
-        <textarea 
-            id="stock_list" 
-            name="stock_list" 
-            rows="4" 
-            placeholder="例如: 600519, 000001 (逗号或换行分隔)"
-        >{safe_value}</textarea>
+
+      <!-- 右侧：订阅管理 -->
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title" style="font-size: 1rem;">📋 订阅管理</h3>
+          </div>
+          <div class="card-body">
+            <form method="post" action="/update">
+              <div class="form-group">
+                <label for="stock_list">自选股列表</label>
+                <p class="text-muted mb-2">用于定时分析，一行一个或逗号分隔</p>
+                <textarea
+                    id="stock_list"
+                    name="stock_list"
+                    rows="8"
+                    placeholder="例如：600519, 000001"
+                >{safe_value}</textarea>
+              </div>
+              <button type="submit" class="btn-secondary" style="width: 100%;">💾 保存配置</button>
+              <p class="text-muted mt-2 text-center">配置文件: {html.escape(env_filename)}</p>
+            </form>
+          </div>
+        </div>
+
+        <!-- API 说明 -->
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title" style="font-size: 1rem;">🔌 API 接口</h3>
+          </div>
+          <div class="card-body">
+            <div style="font-size: 0.75rem; font-family: monospace; line-height: 1.6;">
+              GET /health<br>
+              GET /analysis?code=xxx<br>
+              GET /tasks<br>
+              GET /task?id=xxx<br>
+              GET /detail?id=xxx
+            </div>
+          </div>
+        </div>
       </div>
-      <button type="submit">💾 保存</button>
-    </form>
-    
+    </div>
+
     <div class="footer">
-      <p>API: <code>/health</code> · <code>/analysis?code=xxx</code> · <code>/tasks</code></p>
+      <p>📊 智能股票分析系统 | AI驱动决策 | 数据仅供参考</p>
     </div>
   </div>
-  
+
   {toast_html}
   {analysis_js}
 """
-    
-    page = render_base(
-        title="A/H股自选配置 | WebUI",
+
+    return render_base(
+        title="查询分析 | 智能股票分析",
         content=content
     )
-    return page.encode("utf-8")
 
 
-def render_error_page(
-    status_code: int,
-    message: str,
-    details: Optional[str] = None
-) -> bytes:
+def render_subscription_page(subscription_list: list = None) -> bytes:
     """
-    渲染错误页面
-
-    Args:
-        status_code: HTTP 状态码
-        message: 错误消息
-        details: 详细信息
+    渲染订阅监控页面
     """
-    details_html = f"<p class='text-muted'>{html.escape(details)}</p>" if details else ""
+    if subscription_list is None:
+        subscription_list = []
 
-    content = f"""
-  <div class="container" style="text-align: center;">
-    <h2>😵 {status_code}</h2>
-    <p>{html.escape(message)}</p>
-    {details_html}
-    <a href="/" style="color: var(--primary); text-decoration: none;">← 返回首页</a>
-  </div>
-"""
-
-    page = render_base(
-        title=f"错误 {status_code}",
-        content=content
-    )
-    return page.encode("utf-8")
-
-
-def render_history_page(
-    history: list,
-    stock_list: list
-) -> bytes:
-    """
-    渲染分析历史记录页面
-
-    Args:
-        history: 分析历史记录列表
-        stock_list: 已分析的股票代码列表
-    """
-    # 生成历史记录 HTML
-    history_items_html = ""
-    for item in history:
-        advice_class = "buy" if "买" in item.get("operation_advice", "") else "sell" if "卖" in item.get("operation_advice", "") else "wait"
-        time_str = item.get("analysis_time", "")[:16] if item.get("analysis_time") else ""
-
-        history_items_html += f"""
-        <div class="history-card" onclick="showDetail({item.get('id')})">
-            <div class="history-header">
-                <span class="stock-code">{html.escape(item.get('code', ''))}</span>
-                <span class="stock-name">{html.escape(item.get('name', ''))}</span>
-                <span class="history-time">{time_str}</span>
+    # 生成订阅卡片
+    subscription_cards = ""
+    for item in subscription_list:
+        subscription_cards += f"""
+        <div class="subscription-card">
+          <div class="subscription-header">
+            <span class="subscription-code">{html.escape(item.get('code', ''))}</span>
+            <span class="subscription-status {'active' if item.get('active') else 'inactive'}">
+              {'监控中' if item.get('active') else '已暂停'}
+            </span>
+          </div>
+          <div class="subscription-body">
+            <div><strong>{html.escape(item.get('name', ''))}</strong></div>
+            <div class="text-muted mt-1">最后更新: {item.get('last_update', '-')}</div>
+            <div class="mt-2">
+              <span class="task-advice {item.get('advice_class', '')}">{item.get('advice', '-')}</span>
+              <span class="task-score">评分: {item.get('score', '-')}</span>
             </div>
-            <div class="history-body">
-                <span class="advice-badge {advice_class}">{html.escape(item.get('operation_advice', '未知'))}</span>
-                <span class="score-badge">评分: {item.get('sentiment_score', 0)}</span>
-                <span class="trend-badge">{html.escape(item.get('trend_prediction', ''))}</span>
-            </div>
-            <div class="history-summary">
-                {html.escape((item.get('analysis_summary') or '')[:150])}...
-            </div>
+          </div>
         </div>
         """
 
-    if not history:
-        history_items_html = '<div class="task-hint">暂无分析记录</div>'
-
-    # 生成股票列表 HTML
-    stock_list_html = ""
-    for code in stock_list[:20]:  # 最多显示 20 个
-        stock_list_html += f'<span class="stock-tag" onclick="filterByCode(\'{code}\')">{html.escape(code)}</span>'
-
-    extra_css = """
-/* History Page */
-.history-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 1rem;
-}
-
-.history-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-}
-
-.history-nav {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.history-nav a {
-    color: var(--primary);
-    text-decoration: none;
-    font-size: 0.875rem;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-    background: var(--bg);
-}
-
-.history-nav a:hover {
-    background: var(--primary);
-    color: white;
-}
-
-.stock-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.stock-tag {
-    padding: 0.25rem 0.5rem;
-    background: var(--bg);
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.stock-tag:hover {
-    background: var(--primary);
-    color: white;
-}
-
-.history-card {
-    background: var(--bg);
-    border-radius: 0.5rem;
-    padding: 1rem;
-    margin-bottom: 0.75rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    border: 1px solid var(--border);
-}
-
-.history-card:hover {
-    border-color: var(--primary);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.history-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.5rem;
-}
-
-.stock-code {
-    font-family: monospace;
-    font-weight: 600;
-    color: var(--primary);
-    background: white;
-    padding: 0.15rem 0.4rem;
-    border-radius: 0.25rem;
-}
-
-.stock-name {
-    color: var(--text-light);
-    font-size: 0.875rem;
-}
-
-.history-time {
-    font-size: 0.75rem;
-    color: var(--text-light);
-}
-
-.history-body {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.advice-badge {
-    padding: 0.15rem 0.4rem;
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    background: var(--border);
-}
-
-.advice-badge.buy {
-    background: #d1fae5;
-    color: #065f46;
-}
-
-.advice-badge.sell {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
-.advice-badge.wait {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.score-badge {
-    padding: 0.15rem 0.4rem;
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-    background: white;
-    color: var(--text-light);
-}
-
-.trend-badge {
-    padding: 0.15rem 0.4rem;
-    border-radius: 0.25rem;
-    font-size: 0.75rem;
-    background: white;
-    color: var(--text-light);
-}
-
-.history-summary {
-    font-size: 0.875rem;
-    color: var(--text-light);
-    line-height: 1.5;
-}
-
-/* Modal */
-.modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    z-index: 1000;
-    overflow-y: auto;
-}
-
-.modal.show {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.modal-content {
-    background: white;
-    border-radius: 1rem;
-    max-width: 600px;
-    width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
-    margin: 1rem;
-}
-
-.modal-header {
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.modal-header h2 {
-    margin: 0;
-    font-size: 1.25rem;
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: var(--text-light);
-    padding: 0;
-    width: auto;
-}
-
-.modal-close:hover {
-    color: var(--text);
-    background: none;
-    transform: none;
-}
-
-.modal-body {
-    padding: 1.5rem;
-}
-
-.detail-section {
-    margin-bottom: 1.5rem;
-}
-
-.detail-section h3 {
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    color: var(--text);
-}
-
-.detail-section p {
-    font-size: 0.875rem;
-    line-height: 1.6;
-    color: var(--text-light);
-    margin: 0;
-}
-
-.detail-meta {
-    display: flex;
-    gap: 1rem;
-    padding: 0.75rem;
-    background: var(--bg);
-    border-radius: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.meta-item {
-    font-size: 0.875rem;
-}
-
-.meta-label {
-    color: var(--text-light);
-}
-
-.meta-value {
-    font-weight: 600;
-    color: var(--text);
-}
-"""
-
-    extra_js = """
-<script>
-function showDetail(id) {
-    fetch('/detail?id=' + id)
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                const detail = data.detail;
-                const modal = document.getElementById('detailModal');
-
-                document.getElementById('detailCode').textContent = detail.code + ' - ' + detail.name;
-                document.getElementById('detailTime').textContent = detail.analysis_time;
-                document.getElementById('detailAdvice').textContent = detail.operation_advice;
-                document.getElementById('detailScore').textContent = '评分: ' + detail.sentiment_score;
-                document.getElementById('detailTrend').textContent = detail.trend_prediction;
-                document.getElementById('detailSummary').textContent = detail.analysis_summary || '无';
-                document.getElementById('detailTechnical').textContent = detail.technical_analysis || '无';
-                document.getElementById('detailFundamental').textContent = detail.fundamental_analysis || '无';
-                document.getElementById('detailNews').textContent = detail.news_summary || '无';
-                document.getElementById('detailKeyPoints').textContent = detail.key_points || '无';
-                document.getElementById('detailRisk').textContent = detail.risk_warning || '无';
-
-                modal.classList.add('show');
-            } else {
-                alert('加载详情失败: ' + (data.error || '未知错误'));
-            }
-        })
-        .catch(err => alert('请求失败: ' + err.message));
-}
-
-function closeModal() {
-    document.getElementById('detailModal').classList.remove('show');
-}
-
-function filterByCode(code) {
-    // TODO: 实现按代码过滤
-    alert('按股票代码过滤: ' + code + ' (功能开发中)');
-}
-
-// 点击模态框背景关闭
-document.addEventListener('click', function(e) {
-    const modal = document.getElementById('detailModal');
-    if (e.target === modal) {
-        closeModal();
-    }
-});
-</script>
-"""
+    if not subscription_cards:
+        subscription_cards = '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">暂无订阅标的</div></div>'
 
     content = f"""
-  <div class="container">
-    <div class="history-header">
-      <h2 class="history-title">📊 分析历史</h2>
-      <div class="history-nav">
-        <a href="/">← 返回首页</a>
+  <div class="app-container">
+    {render_navbar("subscription")}
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">📋 订阅监控</h2>
+        <button class="btn-sm">🔄 刷新全部</button>
+      </div>
+      <div class="card-body">
+        <p class="text-muted">订阅标的将自动定期分析，并在关键信号变化时推送通知。</p>
       </div>
     </div>
 
-    <div class="stock-tags">
-      <strong>已分析股票:</strong>
-      {stock_list_html or '<span class="text-muted">暂无</span>'}
+    <div class="subscription-grid">
+      {subscription_cards}
     </div>
 
-    <div class="history-list">
-      {history_items_html}
+    <div class="footer">
+      <p>📊 订阅监控 | 自动分析 | 实时推送</p>
     </div>
   </div>
-
-  <!-- 详情模态框 -->
-  <div id="detailModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="detailCode">股票详情</h2>
-        <button class="modal-close" onclick="closeModal()">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="detail-meta">
-          <span class="meta-item"><span class="meta-label">时间:</span> <span class="meta-value" id="detailTime">-</span></span>
-          <span class="meta-item"><span class="meta-label">建议:</span> <span class="meta-value" id="detailAdvice">-</span></span>
-          <span class="meta-item" id="detailScore">-</span>
-          <span class="meta-item" id="detailTrend">-</span>
-        </div>
-
-        <div class="detail-section">
-          <h3>📝 综合分析</h3>
-          <p id="detailSummary">-</p>
-        </div>
-
-        <div class="detail-section">
-          <h3>📈 技术面</h3>
-          <p id="detailTechnical">-</p>
-        </div>
-
-        <div class="detail-section">
-          <h3>💼 基本面</h3>
-          <p id="detailFundamental">-</p>
-        </div>
-
-        <div class="detail-section">
-          <h3>📰 新闻摘要</h3>
-          <p id="detailNews">-</p>
-        </div>
-
-        <div class="detail-section">
-          <h3>🎯 核心看点</h3>
-          <p id="detailKeyPoints">-</p>
-        </div>
-
-        <div class="detail-section">
-          <h3>⚠️ 风险提示</h3>
-          <p id="detailRisk">-</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {extra_js}
 """
 
-    page = render_base(
-        title="分析历史记录",
-        content=content,
-        extra_css=extra_css
+    return render_base(
+        title="订阅监控 | 智能股票分析",
+        content=content
     )
-    return page.encode("utf-8")
 
 
-def render_futures_page(metrics_list: list, extreme_symbols: list) -> bytes:
+def render_futures_page(metrics_list: list = None, extreme_symbols: list = None) -> bytes:
     """
-    渲染期货波动率监控页面
-
-    Args:
-        metrics_list: 波动率指标列表
-        extreme_symbols: 极端风险标的列表
+    渲染期货监控页面
     """
-    # 生成指标卡片 HTML
-    metrics_html = ""
+    if metrics_list is None:
+        metrics_list = []
+    if extreme_symbols is None:
+        extreme_symbols = []
+
+    # 生成极端风险预警
+    extreme_alert = ""
+    if extreme_symbols:
+        extreme_alert = f"""
+        <div class="card" style="background: #fee2e2; border-color: #ef4444;">
+          <div class="card-body" style="text-align: center; color: #991b1b;">
+            <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">🚨 极端风险预警</div>
+            <div>检测到 {len(extreme_symbols)} 个标的出现 IV-HV 极端背离</div>
+          </div>
+        </div>
+        """
+
+    # 生成期货卡片
+    futures_cards = ""
     for m in metrics_list:
-        # 风险等级样式
-        risk_styles = {
-            'low': 'background: #ecfdf5; border-color: #10b981;',
-            'medium': 'background: #fef3c7; border-color: #f59e0b;',
-            'high': 'background: #fed7aa; border-color: #f97316;',
-            'extreme': 'background: #fee2e2; border-color: #ef4444;'
-        }
-        risk_style = risk_styles.get(m.get('risk_level', 'low'), '')
+        risk_class = f"risk-{m.get('risk_level', 'low')}"
+        iv_pct = m.get('iv_percentile', 0)
 
         # IV 分位数颜色
-        iv_pct = m.get('iv_percentile', 0)
         if iv_pct >= 95:
             iv_color = '#ef4444'
         elif iv_pct >= 90:
@@ -1465,307 +1195,186 @@ def render_futures_page(metrics_list: list, extreme_symbols: list) -> bytes:
         else:
             iv_color = '#10b981'
 
-        metrics_html += f"""
-        <div class="futures-card" style="{risk_style}">
-            <div class="futures-header">
-                <span class="futures-symbol">{html.escape(m.get('symbol', ''))}</span>
-                <span class="futures-name">{html.escape(m.get('name', ''))}</span>
-                <span class="futures-price">${m.get('current_price', 0):.2f}</span>
+        futures_cards += f"""
+        <div class="futures-card {risk_class}">
+          <div class="futures-header">
+            <span class="futures-symbol">{html.escape(m.get('symbol', ''))}</span>
+            <span style="font-size: 0.875rem; color: var(--text-light);">{html.escape(m.get('name', ''))}</span>
+            <span class="futures-price">${m.get('current_price', 0):.2f}</span>
+          </div>
+          <div class="futures-metrics">
+            <div class="futures-metric">
+              <span class="futures-label">IV (隐含波动率)</span>
+              <span class="futures-value">{m.get('iv_current', 0):.2f}%</span>
             </div>
-            <div class="futures-metrics">
-                <div class="metric-item">
-                    <span class="metric-label">IV (隐含)</span>
-                    <span class="metric-value">{m.get('iv_current', 0):.2f}%</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">IV 分位</span>
-                    <span class="metric-value" style="color: {iv_color};">{iv_pct:.1f}%</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">HV (历史)</span>
-                    <span class="metric-value">{m.get('hv_20d', 0):.2f}%</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-label">背离度</span>
-                    <span class="metric-value">{m.get('iv_hv_divergence', 0):+.2f}%</span>
-                </div>
+            <div class="futures-metric">
+              <span class="futures-label">IV 分位数</span>
+              <span class="futures-value" style="color: {iv_color};">{iv_pct:.1f}%</span>
             </div>
-            <div class="futures-risk">
-                <span class="risk-badge {m.get('risk_level', 'low')}">{m.get('risk_level', 'low').upper()}</span>
-                <span class="futures-time">{m.get('timestamp', '')[:16]}</span>
+            <div class="futures-metric">
+              <span class="futures-label">HV (历史波动率)</span>
+              <span class="futures-value">{m.get('hv_20d', 0):.2f}%</span>
             </div>
+            <div class="futures-metric">
+              <span class="futures-label">IV-HV 背离度</span>
+              <span class="futures-value">{m.get('iv_hv_divergence', 0):+.2f}%</span>
+            </div>
+          </div>
+          <div class="futures-risk">
+            <span class="risk-badge">{m.get('risk_level', 'low').upper()}</span>
+            <span class="text-muted" style="font-size: 0.7rem;">{m.get('timestamp', '')[:16]}</span>
+          </div>
         </div>
         """
 
-    if not metrics_list:
-        metrics_html = '<div class="task-hint">暂无监控数据</div>'
+    if not futures_cards:
+        futures_cards = '<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-text">暂无监控数据</div></div>'
 
-    # 极端风险预警
-    extreme_html = ""
-    if extreme_symbols:
-        extreme_html = '<div class="extreme-alert">🚨 检测到 ' + str(len(extreme_symbols)) + ' 个极端风险标的</div>'
-
-    extra_css = """
-/* Futures Page */
-.futures-nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-
-.filters {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.filter-btn {
-    padding: 0.4rem 0.8rem;
-    border: 1px solid var(--border);
-    border-radius: 0.375rem;
-    background: white;
-    color: var(--text);
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.filter-btn:hover {
-    background: var(--bg);
-}
-
-.filter-btn.active {
-    background: var(--primary);
-    color: white;
-    border-color: var(--primary);
-}
-
-.extreme-alert {
-    background: #fee2e2;
-    border: 1px solid #ef4444;
-    border-radius: 0.5rem;
-    padding: 0.75rem 1rem;
-    margin-bottom: 1rem;
-    color: #991b1b;
-    font-weight: 500;
-    text-align: center;
-}
-
-.futures-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1rem;
-}
-
-.futures-card {
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    padding: 1rem;
-    transition: all 0.2s;
-}
-
-.futures-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.futures-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid rgba(0,0,0,0.1);
-}
-
-.futures-symbol {
-    font-family: monospace;
-    font-weight: 600;
-    font-size: 1rem;
-    color: var(--primary);
-}
-
-.futures-name {
-    color: var(--text-light);
-    font-size: 0.8rem;
-}
-
-.futures-price {
-    font-weight: 600;
-    color: var(--text);
-}
-
-.futures-metrics {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-}
-
-.metric-item {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-}
-
-.metric-label {
-    font-size: 0.7rem;
-    color: var(--text-light);
-}
-
-.metric-value {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--text);
-}
-
-.futures-risk {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-top: 0.5rem;
-    border-top: 1px solid rgba(0,0,0,0.1);
-}
-
-.risk-badge {
-    padding: 0.2rem 0.5rem;
-    border-radius: 0.25rem;
-    font-size: 0.7rem;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.risk-badge.low {
-    background: #d1fae5;
-    color: #065f46;
-}
-
-.risk-badge.medium {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.risk-badge.high {
-    background: #fed7aa;
-    color: #c2410c;
-}
-
-.risk-badge.extreme {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
-.futures-time {
-    font-size: 0.7rem;
-    color: var(--text-light);
-}
-
-.legend {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1rem;
-    padding: 0.75rem;
-    background: var(--bg);
-    border-radius: 0.5rem;
-    font-size: 0.8rem;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-}
-
-.legend-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-}
-
-.legend-dot.green { background: #10b981; }
-.legend-dot.yellow { background: #f59e0b; }
-.legend-dot.orange { background: #f97316; }
-.legend-dot.red { background: #ef4444; }
-"""
-
-    extra_js = """
-<script>
-(function() {
-    const filterBtns = document.querySelectorAll('.filter-btn');
-    const cards = document.querySelectorAll('.futures-card');
-
-    filterBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const filter = this.dataset.filter;
-
-            // 更新按钮状态
-            filterBtns.forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-
-            // 过滤卡片
-            cards.forEach(card => {
-                if (filter === 'all') {
-                    card.style.display = 'block';
-                } else {
-                    const riskLevel = card.querySelector('.risk-badge').className.toLowerCase();
-                    if (riskLevel.includes(filter)) {
-                        card.style.display = 'block';
-                    } else {
-                        card.style.display = 'none';
-                    }
-                }
-            });
-        });
-    });
-
-    // 自动刷新（每5分钟）
-    setTimeout(() => {
-        location.reload();
-    }, 5 * 60 * 1000);
-})();
-</script>
-"""
+    # 图例
+    legend = """
+    <div class="card">
+      <div class="card-body" style="display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: #10b981;"></span>
+          <span>安全 (低)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: #f59e0b;"></span>
+          <span>警告 (中)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: #f97316;"></span>
+          <span>高危 (高)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444;"></span>
+          <span>极端 (极高)</span>
+        </div>
+      </div>
+    </div>
+    """
 
     content = f"""
-  <div class="container" style="max-width: 900px;">
-    <div class="futures-nav">
-      <h2>📊 期货波动率监控</h2>
-      <a href="/" style="color: var(--primary); text-decoration: none; font-size: 0.875rem;">← 返回首页</a>
+  <div class="app-container">
+    {render_navbar("futures")}
+
+    {extreme_alert}
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">📊 期货/期权波动率监控</h2>
+        <button class="btn-sm" onclick="location.reload()">🔄 刷新</button>
+      </div>
+      <div class="card-body">
+        <p class="text-muted">
+          监控贵金属、商品、加密货币的 IV-HV 背离信号。当 IV 处于历史高位且显著高于 HV 时，表明期权杠杆极其昂贵，多头面临时间损耗反噬。
+        </p>
+      </div>
     </div>
 
-    {extreme_html}
-
-    <div class="legend">
-      <div class="legend-item"><span class="legend-dot green"></span> 安全 (低)</div>
-      <div class="legend-item"><span class="legend-dot yellow"></span> 警告 (中)</div>
-      <div class="legend-item"><span class="legend-dot orange"></span> 高危 (高)</div>
-      <div class="legend-item"><span class="legend-dot red"></span> 极端 (极高)</div>
-    </div>
-
-    <div class="filters" style="margin-bottom: 1rem;">
-      <button class="filter-btn active" data-filter="all">全部</button>
-      <button class="filter-btn" data-filter="extreme">🔴 极端</button>
-      <button class="filter-btn" data-filter="high">🟠 高危</button>
-      <button class="filter-btn" data-filter="medium">🟡 警告</button>
-      <button class="filter-btn" data-filter="low">🟢 安全</button>
-    </div>
+    {legend}
 
     <div class="futures-grid">
-      {metrics_html}
+      {futures_cards}
     </div>
 
-    <div class="footer" style="margin-top: 2rem;">
-      <p>💡 IV-HV 背离策略：当 IV >> HV 时，期权杠杆极其昂贵，多头面临时间损耗反噬</p>
-      <p style="margin-top: 0.5rem;">数据每5分钟自动刷新 | 使用 CBOE 官方波动率指数（消除微笑偏差）</p>
+    <div class="footer">
+      <p>💡 数据来源: CBOE 官方波动率指数 (VIX, GVZ, OVX 等) | 消除波动率微笑偏差</p>
+      <p class="mt-1">数据每5分钟自动刷新 | IV-HV 背离策略预警</p>
     </div>
   </div>
-
-  {extra_js}
 """
 
-    page = render_base(
-        title="期货波动率监控",
-        content=content,
-        extra_css=extra_css
+    return render_base(
+        title="期货监控 | 智能股票分析",
+        content=content
     )
-    return page.encode("utf-8")
 
+
+def render_history_page(history: list = None, stock_list: list = None) -> bytes:
+    """
+    渲染历史记录页面
+    """
+    if history is None:
+        history = []
+    if stock_list is None:
+        stock_list = []
+
+    # 生成历史记录卡片
+    history_cards = ""
+    for item in history:
+        advice_class = "buy" if "买" in item.get("operation_advice", "") else "sell" if "卖" in item.get("operation_advice", "") else "wait"
+        time_str = item.get("analysis_time", "")[:16] if item.get("analysis_time") else ""
+
+        history_cards += f"""
+        <div class="subscription-card" onclick="showDetail({item.get('id')})" style="cursor: pointer;">
+          <div class="subscription-header">
+            <div>
+              <span class="subscription-code">{html.escape(item.get('code', ''))}</span>
+              <span style="color: var(--text-light); font-size: 0.875rem; margin-left: 0.5rem;">{html.escape(item.get('name', ''))}</span>
+            </div>
+            <span class="task-advice {advice_class}">{html.escape(item.get('operation_advice', '未知'))}</span>
+          </div>
+          <div class="subscription-body">
+            <div class="text-muted" style="font-size: 0.75rem;">{time_str}</div>
+            <div class="mt-1" style="font-size: 0.875rem;">
+              <span class="task-score">评分: {item.get('sentiment_score', 0)}</span>
+              <span style="margin-left: 0.5rem;">{html.escape(item.get('trend_prediction', ''))}</span>
+            </div>
+            <div class="text-muted mt-1" style="font-size: 0.875rem;">
+              {html.escape((item.get('analysis_summary') or '')[:100])}...
+            </div>
+          </div>
+        </div>
+        """
+
+    if not history_cards:
+        history_cards = '<div class="empty-state"><div class="empty-state-icon">📜</div><div class="empty-state-text">暂无分析记录</div></div>'
+
+    content = f"""
+  <div class="app-container">
+    {render_navbar("history")}
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">📜 分析历史</h2>
+        <span class="text-muted" style="font-size: 0.875rem;">共 {len(history)} 条记录</span>
+      </div>
+    </div>
+
+    <div class="subscription-grid" style="grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));">
+      {history_cards}
+    </div>
+
+    <div class="footer">
+      <p>📜 历史记录 | 点击查看详情</p>
+    </div>
+  </div>
+"""
+
+    return render_base(
+        title="历史记录 | 智能股票分析",
+        content=content
+    )
+
+
+def render_error_page(status_code: int, message: str, details: Optional[str] = None) -> bytes:
+    """渲染错误页面"""
+    details_html = f"<p class='text-muted'>{html.escape(details)}</p>" if details else ""
+
+    content = f"""
+  <div class="app-container">
+    <div class="card" style="text-align: center; max-width: 500px; margin: 3rem auto;">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">😵</div>
+      <h2>{status_code}</h2>
+      <p class="text-muted">{html.escape(message)}</p>
+      {details_html}
+      <a href="/" style="color: var(--primary); text-decoration: none; display: inline-block; margin-top: 1rem;">← 返回首页</a>
+    </div>
+  </div>
+"""
+
+    return render_base(
+        title=f"错误 {status_code}",
+        content=content
+    )
