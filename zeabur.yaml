@@ -1,0 +1,62 @@
+# Zeabur 部署配置文件
+# 用于明确端口映射和环境变量
+
+# 服务名称
+name: astock-webui
+
+# 端口配置（对外端口）
+# Zeabur 会自动将外部 8080 映射到容器内部 8000
+ports:
+  - port: 8080
+    type: HTTP
+    targetPort: 8000
+
+# 环境变量建议（在 Zeabur 控制台配置）
+# 以下是必须配置的环境变量：
+env:
+  # WebUI 配置（必须）
+  - name: WEBUI_ENABLED
+    value: "true"
+  - name: WEBUI_HOST
+    value: "0.0.0.0"
+  - name: WEBUI_PORT
+    value: "8000"
+
+  # 日志配置（必须）
+  - name: LOG_LEVEL
+    value: "INFO"
+  - name: LOG_DIR
+    value: "/app/logs"
+
+  # AI 模型配置（必须 - 使用通义千问）
+  - name: OPENAI_API_KEY
+    description: "你的通义千问 API Key (sk-开头的)"
+  - name: OPENAI_BASE_URL
+    value: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  - name: OPENAI_MODEL
+    value: "qwen-turbo"
+  - name: OPENAI_TEMPERATURE
+    value: "0.7"
+
+  # 股票列表（可选）
+  - name: STOCK_LIST
+    value: "600519,300750,002594"
+
+  # Gemini 重试配置（可选）
+  - name: GEMINI_REQUEST_DELAY
+    value: "2.0"
+  - name: GEMINI_MAX_RETRIES
+    value: "5"
+
+  # Telegram 通知（可选 - 不配置也能运行）
+  - name: TELEGRAM_BOT_TOKEN
+    description: "Telegram Bot Token（可选）"
+  - name: TELEGRAM_CHAT_ID
+    description: "Telegram Chat ID（可选）"
+
+# Docker 配置
+docker:
+  # Dockerfile 路径
+  dockerfilePath: docker/Dockerfile
+  # 构建上下文
+  context: .
