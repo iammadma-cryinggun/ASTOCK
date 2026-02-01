@@ -918,7 +918,10 @@ def render_config_page(
   <div class="container">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
       <h2 style="margin: 0;">📈 A股/港股/美股分析</h2>
-      <a href="/history" style="color: var(--primary); text-decoration: none; font-size: 0.875rem;">📊 历史记录</a>
+      <div style="display: flex; gap: 1rem;">
+        <a href="/futures" style="color: var(--primary); text-decoration: none; font-size: 0.875rem;">📊 期货监控</a>
+        <a href="/history" style="color: var(--primary); text-decoration: none; font-size: 0.875rem;">📜 历史记录</a>
+      </div>
     </div>
     
     <!-- 快速分析区域 -->
@@ -1429,3 +1432,340 @@ document.addEventListener('click', function(e) {
         extra_css=extra_css
     )
     return page.encode("utf-8")
+
+
+def render_futures_page(metrics_list: list, extreme_symbols: list) -> bytes:
+    """
+    渲染期货波动率监控页面
+
+    Args:
+        metrics_list: 波动率指标列表
+        extreme_symbols: 极端风险标的列表
+    """
+    # 生成指标卡片 HTML
+    metrics_html = ""
+    for m in metrics_list:
+        # 风险等级样式
+        risk_styles = {
+            'low': 'background: #ecfdf5; border-color: #10b981;',
+            'medium': 'background: #fef3c7; border-color: #f59e0b;',
+            'high': 'background: #fed7aa; border-color: #f97316;',
+            'extreme': 'background: #fee2e2; border-color: #ef4444;'
+        }
+        risk_style = risk_styles.get(m.get('risk_level', 'low'), '')
+
+        # IV 分位数颜色
+        iv_pct = m.get('iv_percentile', 0)
+        if iv_pct >= 95:
+            iv_color = '#ef4444'
+        elif iv_pct >= 90:
+            iv_color = '#f97316'
+        elif iv_pct >= 80:
+            iv_color = '#f59e0b'
+        else:
+            iv_color = '#10b981'
+
+        metrics_html += f"""
+        <div class="futures-card" style="{risk_style}">
+            <div class="futures-header">
+                <span class="futures-symbol">{html.escape(m.get('symbol', ''))}</span>
+                <span class="futures-name">{html.escape(m.get('name', ''))}</span>
+                <span class="futures-price">${m.get('current_price', 0):.2f}</span>
+            </div>
+            <div class="futures-metrics">
+                <div class="metric-item">
+                    <span class="metric-label">IV (隐含)</span>
+                    <span class="metric-value">{m.get('iv_current', 0):.2f}%</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">IV 分位</span>
+                    <span class="metric-value" style="color: {iv_color};">{iv_pct:.1f}%</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">HV (历史)</span>
+                    <span class="metric-value">{m.get('hv_20d', 0):.2f}%</span>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">背离度</span>
+                    <span class="metric-value">{m.get('iv_hv_divergence', 0):+.2f}%</span>
+                </div>
+            </div>
+            <div class="futures-risk">
+                <span class="risk-badge {m.get('risk_level', 'low')}">{m.get('risk_level', 'low').upper()}</span>
+                <span class="futures-time">{m.get('timestamp', '')[:16]}</span>
+            </div>
+        </div>
+        """
+
+    if not metrics_list:
+        metrics_html = '<div class="task-hint">暂无监控数据</div>'
+
+    # 极端风险预警
+    extreme_html = ""
+    if extreme_symbols:
+        extreme_html = '<div class="extreme-alert">🚨 检测到 ' + str(len(extreme_symbols)) + ' 个极端风险标的</div>'
+
+    extra_css = """
+/* Futures Page */
+.futures-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.filters {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.filter-btn {
+    padding: 0.4rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    background: white;
+    color: var(--text);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filter-btn:hover {
+    background: var(--bg);
+}
+
+.filter-btn.active {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.extreme-alert {
+    background: #fee2e2;
+    border: 1px solid #ef4444;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    color: #991b1b;
+    font-weight: 500;
+    text-align: center;
+}
+
+.futures-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.futures-card {
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    transition: all 0.2s;
+}
+
+.futures-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.futures-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.futures-symbol {
+    font-family: monospace;
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--primary);
+}
+
+.futures-name {
+    color: var(--text-light);
+    font-size: 0.8rem;
+}
+
+.futures-price {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.futures-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.metric-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.metric-label {
+    font-size: 0.7rem;
+    color: var(--text-light);
+}
+
+.metric-value {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.futures-risk {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.risk-badge {
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.risk-badge.low {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.risk-badge.medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.risk-badge.high {
+    background: #fed7aa;
+    color: #c2410c;
+}
+
+.risk-badge.extreme {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.futures-time {
+    font-size: 0.7rem;
+    color: var(--text-light);
+}
+
+.legend {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--bg);
+    border-radius: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.legend-dot.green { background: #10b981; }
+.legend-dot.yellow { background: #f59e0b; }
+.legend-dot.orange { background: #f97316; }
+.legend-dot.red { background: #ef4444; }
+"""
+
+    extra_js = """
+<script>
+(function() {
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const cards = document.querySelectorAll('.futures-card');
+
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const filter = this.dataset.filter;
+
+            // 更新按钮状态
+            filterBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            // 过滤卡片
+            cards.forEach(card => {
+                if (filter === 'all') {
+                    card.style.display = 'block';
+                } else {
+                    const riskLevel = card.querySelector('.risk-badge').className.toLowerCase();
+                    if (riskLevel.includes(filter)) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                }
+            });
+        });
+    });
+
+    // 自动刷新（每5分钟）
+    setTimeout(() => {
+        location.reload();
+    }, 5 * 60 * 1000);
+})();
+</script>
+"""
+
+    content = f"""
+  <div class="container" style="max-width: 900px;">
+    <div class="futures-nav">
+      <h2>📊 期货波动率监控</h2>
+      <a href="/" style="color: var(--primary); text-decoration: none; font-size: 0.875rem;">← 返回首页</a>
+    </div>
+
+    {extreme_html}
+
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot green"></span> 安全 (低)</div>
+      <div class="legend-item"><span class="legend-dot yellow"></span> 警告 (中)</div>
+      <div class="legend-item"><span class="legend-dot orange"></span> 高危 (高)</div>
+      <div class="legend-item"><span class="legend-dot red"></span> 极端 (极高)</div>
+    </div>
+
+    <div class="filters" style="margin-bottom: 1rem;">
+      <button class="filter-btn active" data-filter="all">全部</button>
+      <button class="filter-btn" data-filter="extreme">🔴 极端</button>
+      <button class="filter-btn" data-filter="high">🟠 高危</button>
+      <button class="filter-btn" data-filter="medium">🟡 警告</button>
+      <button class="filter-btn" data-filter="low">🟢 安全</button>
+    </div>
+
+    <div class="futures-grid">
+      {metrics_html}
+    </div>
+
+    <div class="footer" style="margin-top: 2rem;">
+      <p>💡 IV-HV 背离策略：当 IV >> HV 时，期权杠杆极其昂贵，多头面临时间损耗反噬</p>
+      <p style="margin-top: 0.5rem;">数据每5分钟自动刷新 | 使用 CBOE 官方波动率指数（消除微笑偏差）</p>
+    </div>
+  </div>
+
+  {extra_js}
+"""
+
+    page = render_base(
+        title="期货波动率监控",
+        content=content,
+        extra_css=extra_css
+    )
+    return page.encode("utf-8")
+

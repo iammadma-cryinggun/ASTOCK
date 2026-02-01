@@ -298,6 +298,12 @@ def create_default_router() -> Router:
     )
 
     router.register(
+        "/futures", "GET",
+        lambda q: page_handler.handle_futures(),
+        "期货波动率监控"
+    )
+
+    router.register(
         "/update", "POST",
         lambda form: page_handler.handle_update(form),
         "更新配置"
@@ -333,7 +339,26 @@ def create_default_router() -> Router:
         lambda q: api_handler.handle_detail(q),
         "查询分析详情"
     )
-    
+
+    # === 期货监控 API 路由 ===
+    router.register(
+        "/api/futures/volatility", "GET",
+        lambda q: api_handler.handle_futures_volatility(q),
+        "获取期货波动率监控数据"
+    )
+
+    router.register(
+        "/api/futures/extreme-risk", "GET",
+        lambda q: api_handler.handle_futures_extreme_risk(q),
+        "获取极端风险标的"
+    )
+
+    router.register(
+        "/api/futures/report", "GET",
+        lambda q: api_handler.handle_futures_report(q),
+        "生成期货波动率风险报告"
+    )
+
     # === Bot Webhook 路由 ===
     # 注意：Bot Webhook 路由在 dispatch_post 中特殊处理
     # 这里只是为了在路由列表中显示
