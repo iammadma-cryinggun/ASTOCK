@@ -122,21 +122,41 @@ class FinBERTClient:
             if isinstance(result, list) and len(result) > 0:
                 predictions = result[0]
 
-                # 找到得分最高的标签
-                best_pred = max(predictions, key=lambda x: x['score'])
+                # 转换为字典便于查找
+                pred_dict = {p['label']: p['score'] for p in predictions}
 
-                # 转换得分范围：0-1 → -1到1
-                label = best_pred['label']
-                raw_score = best_pred['score']
+                # 获取各标签的置信度
+                positive_conf = pred_dict.get('positive', 0.0)
+                negative_conf = pred_dict.get('negative', 0.0)
+                neutral_conf = pred_dict.get('neutral', 0.0)
 
-                if label == 'positive':
-                    score = raw_score  # 0 ~ 1
-                elif label == 'negative':
-                    score = -raw_score  # -1 ~ 0
-                else:  # neutral
+                # 关键改进：考虑三个标签的相对关系，不只是看最高分
+                # 只有当某个情绪明显高于中性时，才判定为该情绪
+                # 这样避免将"难以判断"的新闻误判为正面或负面
+
+                if neutral_conf >= positive_conf and neutral_conf >= negative_conf:
+                    # 中性置信度最高，或并列最高
+                    label = 'neutral'
+                    raw_score = neutral_conf
                     score = 0.0
+                elif positive_conf > neutral_conf + 0.2:
+                    # 正面置信度明显高于中性（领先至少20%）
+                    label = 'positive'
+                    raw_score = positive_conf
+                    score = positive_conf  # 0 ~ 1
+                elif negative_conf > neutral_conf + 0.2:
+                    # 负面置信度明显高于中性（领先至少20%）
+                    label = 'negative'
+                    raw_score = negative_conf
+                    score = -negative_conf  # -1 ~ 0
+                else:
+                    # 某个情绪领先，但不够明显，判定为中性
+                    label = 'neutral'
+                    raw_score = neutral_conf
+                    score = 0.0
+                    logger.debug(f"[FinBERT] 情绪不明显（positive={positive_conf:.2f}, neutral={neutral_conf:.2f}, negative={negative_conf:.2f}），判定为中性")
 
-                logger.info(f"[FinBERT] 分析完成: {label} ({score:.3f}), 耗时 {elapsed*1000:.0f}ms")
+                logger.info(f"[FinBERT] 分析完成: {label} ({score:.3f}), 置信度分布=[positive:{positive_conf:.2f}, neutral:{neutral_conf:.2f}, negative:{negative_conf:.2f}], 耗时 {elapsed*1000:.0f}ms")
 
                 return SentimentResult(
                     score=score,
