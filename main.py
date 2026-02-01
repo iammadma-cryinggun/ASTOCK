@@ -371,7 +371,14 @@ def main() -> int:
     
     # === 启动 WebUI (如果启用) ===
     # 优先级: 命令行参数 > 配置文件
-    start_webui = (args.webui or args.webui_only or config.webui_enabled) and os.getenv("GITHUB_ACTIONS") != "true"
+    # 注意：Zeabur 等云平台部署需要启动 WebUI，只有 GitHub Actions 定时任务才禁用
+    is_github_actions = os.getenv("GITHUB_ACTIONS") == "true"
+    is_schedule_mode = args.schedule or config.schedule_enabled
+
+    # 在以下情况启动 WebUI：
+    # 1. 命令行明确指定 --webui 或 --webui-only
+    # 2. 配置文件启用了 webui_enabled，且不是 GitHub Actions 定时任务模式
+    start_webui = (args.webui or args.webui_only or (config.webui_enabled and not (is_github_actions and is_schedule_mode)))
     
     if start_webui:
         try:
