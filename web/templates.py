@@ -828,6 +828,46 @@ def render_config_page(
                     detailHtml += '<div style="margin-bottom: 0.75rem;"><strong>📰 消息面:</strong><p style="margin: 0.25rem 0; color: var(--text-light); font-size: 0.875rem;">' + escapeHtml(result.news_summary) + '</p></div>';
                 }
 
+                // 新闻列表（带情绪评分）
+                if (result.news_list && result.news_list.length > 0) {
+                    detailHtml += '<div style="margin-bottom: 0.75rem;"><strong>📰 新闻详情:</strong><div style="max-height: 400px; overflow-y: auto;">';
+                    for (const news of result.news_list) {
+                        const sentimentLabel = news.sentiment_label || '⚪中性';
+                        const sentimentScore = news.sentiment_score || '';
+                        const category = news.category || '';
+                        const source = news.source || '';
+                        const date = news.published_date || '';
+                        detailHtml += '<div style="padding: 0.5rem; margin-bottom: 0.5rem; border-left: 3px solid var(--border); background: var(--bg-secondary);">';
+                        detailHtml += '<div style="display: flex; justify-content: space-between; align-items: start;">';
+                        detailHtml += '<div style="flex: 1; padding-right: 0.5rem;">';
+                        if (category) {
+                            detailHtml += '<span style="font-size: 0.75rem; color: var(--text-muted); margin-right: 0.5rem;">' + escapeHtml(category) + '</span>';
+                        }
+                        detailHtml += '<a href="' + escapeHtml(news.url || '#') + '" target="_blank" style="color: var(--primary); text-decoration: none; font-weight: 500;">' + escapeHtml(news.title) + '</a>';
+                        detailHtml += '</div>';
+                        detailHtml += '<div style="text-align: right;">';
+                        detailHtml += '<span style="font-size: 0.875rem;">' + sentimentLabel + '</span>';
+                        if (sentimentScore && sentimentScore !== 'N/A') {
+                            detailHtml += '<div style="font-size: 0.75rem; color: var(--text-muted);">评分: ' + sentimentScore + '</div>';
+                        }
+                        detailHtml += '</div>';
+                        detailHtml += '</div>';
+                        if (news.snippet) {
+                            detailHtml += '<p style="margin: 0.25rem 0 0 0; font-size: 0.875rem; color: var(--text-light);">' + escapeHtml(news.snippet) + '</p>';
+                        }
+                        detailHtml += '<div style="margin-top: 0.25rem; font-size: 0.75rem; color: var(--text-muted);">';
+                        if (source) {
+                            detailHtml += escapeHtml(source);
+                        }
+                        if (date) {
+                            detailHtml += ' | ' + escapeHtml(date);
+                        }
+                        detailHtml += '</div>';
+                        detailHtml += '</div>';
+                    }
+                    detailHtml += '</div></div>';
+                }
+
                 // 操作建议
                 if (result.operation_advice) {
                     detailHtml += '<div style="margin-bottom: 0.75rem;"><strong>🎯 操作建议:</strong> <span style="color: var(--primary); font-weight: 600;">' + escapeHtml(result.operation_advice) + '</span></div>';
@@ -1115,10 +1155,10 @@ def render_config_page(
           </div>
           <div class="card-body">
             <div style="font-size: 0.875rem; line-height: 1.8;">
-              <p><strong>📈 技术面数据：</strong>AkShare/Tushare/Yahoo Finance</p>
-              <p><strong>📰 新闻数据：</strong>Tavily/SerpAPI/Bocha (实时搜索)</p>
-              <p><strong>🤖 AI 分析：</strong>Google Gemini / OpenAI 兼容 API</p>
-              <p><strong>💡 语义分析：</strong>FinBERT-Chinese (新闻情绪评分)</p>
+              <p><strong>📈 技术面数据：</strong>AkShare/Tushare/Yahoo Finance (实时行情+历史数据)</p>
+              <p><strong>📰 新闻数据：</strong>Tavily/SerpAPI/Bocha (多维度实时搜索)</p>
+              <p><strong>🤖 AI 分析：</strong>Google Gemini / OpenAI 兼容 API (temperature=0.0 确保一致性)</p>
+              <p><strong>📊 分析维度：</strong>技术面(MA/量能) + 基本面 + 消息面 + 趋势分析</p>
               <hr style="border: none; border-top: 1px solid var(--border); margin: 1rem 0;">
               <p><strong>报告类型说明：</strong></p>
               <ul style="margin: 0.5rem 0; padding-left: 1.25rem;">

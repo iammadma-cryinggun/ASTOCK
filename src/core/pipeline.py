@@ -23,10 +23,11 @@ from data_provider import DataFetcherManager
 from data_provider.realtime_types import ChipDistribution
 from src.analyzer import GeminiAnalyzer, AnalysisResult, STOCK_NAME_MAP
 from src.notification import NotificationService, NotificationChannel
-from src.search_service import SearchService
+from src.search_service import SearchService, SearchResult
 from src.enums import ReportType
 from src.stock_analyzer import StockTrendAnalyzer, TrendAnalysisResult
 from bot.models import BotMessage
+from src.semantic_router import get_semantic_router, TaskType
 
 
 logger = logging.getLogger(__name__)
@@ -179,6 +180,7 @@ class StockAnalysisPipeline:
                     technical_analysis=cached_result.technical_analysis,
                     fundamental_analysis=cached_result.fundamental_analysis,
                     news_summary=cached_result.news_summary,
+                    news_list=cached_result.news_list,  # 包含新闻列表（带情绪评分）
                     key_points=cached_result.key_points,
                     confidence_level=cached_result.confidence_level,
                     risk_warning=cached_result.risk_warning,
@@ -246,16 +248,17 @@ class StockAnalysisPipeline:
             
             # Step 4: 多维度情报搜索（最新消息+风险排查+业绩预期）
             news_context = None
+            news_list: List[Dict[str, Any]] = []  # 保存原始新闻和情绪评分
             if self.search_service.is_available:
                 logger.info(f"[{code}] 开始多维度情报搜索...")
-                
+
                 # 使用多维度搜索（最多5次搜索）
                 intel_results = self.search_service.search_comprehensive_intel(
                     stock_code=code,
                     stock_name=stock_name,
                     max_searches=5
                 )
-                
+
                 # 格式化情报报告
                 if intel_results:
                     news_context = self.search_service.format_intel_report(intel_results, stock_name)
@@ -264,6 +267,58 @@ class StockAnalysisPipeline:
                     )
                     logger.info(f"[{code}] 情报搜索完成: 共 {total_results} 条结果")
                     logger.debug(f"[{code}] 情报搜索结果:\n{news_context}")
+
+                    # 提取所有新闻条目并进行情绪分析
+                    semantic_router = get_semantic_router()
+                    for dim_name, response in intel_results.items():
+                        if not response.success:
+                            continue
+
+                        # 维度描述
+                        dim_desc_map = {
+                            'latest_news': '📰 最新消息',
+                            'market_analysis': '📈 机构分析',
+                            'risk_check': '⚠️ 风险排查',
+                            'earnings': '📊 业绩预期',
+                            'industry': '🏭 行业分析',
+                        }
+                        category = dim_desc_map.get(dim_name, dim_name)
+
+                        for result in response.results[:4]:  # 每个维度最多4条
+                            # 使用 semantic_router 进行情绪分析
+                            sentiment_result = None
+                            try:
+                                sentiment_result = semantic_router.analyze(
+                                    task_type=TaskType.NEWS_SENTIMENT,
+                                    content=f"{result.title}. {result.snippet}"
+                                )
+                            except Exception as e:
+                                logger.warning(f"[{code}] 新闻情绪分析失败: {e}")
+
+                            # 确定情绪标签
+                            sentiment_label = "⚪中性"
+                            sentiment_score_text = "N/A"
+                            if sentiment_result:
+                                if sentiment_result.score > 0.3:
+                                    sentiment_label = "🟢正面"
+                                    sentiment_score_text = f"+{sentiment_result.score:.2f}"
+                                elif sentiment_result.score < -0.3:
+                                    sentiment_label = "🔴负面"
+                                    sentiment_score_text = f"{sentiment_result.score:.2f}"
+
+                            news_list.append({
+                                'title': result.title,
+                                'snippet': result.snippet,
+                                'url': result.url,
+                                'source': result.source,
+                                'published_date': result.published_date,
+                                'category': category,
+                                'sentiment_label': sentiment_label,
+                                'sentiment_score': sentiment_score_text,
+                                'model_used': sentiment_result.model_used if sentiment_result else None
+                            })
+
+                    logger.info(f"[{code}] 新闻情绪分析完成: {len(news_list)} 条")
             else:
                 logger.info(f"[{code}] 搜索服务不可用，跳过情报搜索")
             
@@ -292,11 +347,10 @@ class StockAnalysisPipeline:
             )
             
             # Step 7: 调用 AI 分析（传入增强的上下文和新闻）
-            result = self.analyzer.analyze(enhanced_context, news_context=news_context)
+            result = self.analyzer.analyze(enhanced_context, news_context=news_context, news_list=news_list)
 
             # Step 8: 保存到缓存（确保短时间内重复分析使用相同结果）
             if result:
-                global _analysis_cache, _CACHE_TTL
                 _analysis_cache[code] = (result, datetime.now())
                 logger.info(f"[{code}] 分析结果已缓存，{_CACHE_TTL.seconds}秒内重复请求将使用缓存")
 
