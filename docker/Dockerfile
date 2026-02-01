@@ -53,4 +53,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || python -c "import sys; sys.exit(0)"
 
 # 默认命令（可被覆盖）
-CMD ["python", "main.py", "--schedule"]
+# Zeabur 部署默认启动 WebUI 模式
+CMD ["python", "main.py", "--webui"]
