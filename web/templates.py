@@ -781,12 +781,12 @@ def render_config_page(
         const status = task.status || 'pending';
         const code = task.code || taskId.split('_')[0];
         const result = task.result || {};
+        const isExpanded = taskData.expanded || false;
 
         let statusIcon = '⏳';
-        let statusText = '等待中';
-        if (status === 'running') { statusIcon = '<span class="spinner"></span>'; statusText = '分析中'; }
-        else if (status === 'completed') { statusIcon = '✓'; statusText = '完成'; }
-        else if (status === 'failed') { statusIcon = '✗'; statusText = '失败'; }
+        if (status === 'running') { statusIcon = '<span class="spinner"></span>'; }
+        else if (status === 'completed') { statusIcon = '✓'; }
+        else if (status === 'failed') { statusIcon = '✗'; }
 
         let resultHtml = '';
         if (status === 'completed' && result.operation_advice) {
@@ -799,7 +799,80 @@ def render_config_page(
             resultHtml = '<div class="task-result"><span class="task-advice sell">失败</span></div>';
         }
 
-        return '<div class="task-card ' + status + '" id="task_' + taskId + '">' +
+        // 展开的详细内容
+        let detailHtml = '';
+        if (isExpanded && status === 'completed') {
+            const reportType = task.report_type || 'simple';
+
+            if (reportType === 'full') {
+                // 完整报告格式
+                detailHtml = '<div class="task-detail" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">';
+
+                // 核心结论
+                if (result.analysis_summary) {
+                    detailHtml += '<div style="margin-bottom: 0.75rem;"><strong>📌 核心结论:</strong><p style="margin: 0.25rem 0; color: var(--text-light);">' + escapeHtml(result.analysis_summary) + '</p></div>';
+                }
+
+                // 技术面分析
+                if (result.technical_analysis) {
+                    detailHtml += '<div style="margin-bottom: 0.75rem;"><strong>📈 技术面:</strong><p style="margin: 0.25rem 0; color: var(--text-light); font-size: 0.875rem;">' + escapeHtml(result.technical_analysis) + '</p></div>';
+                }
+
+                // 基本面分析
+                if (result.fundamental_analysis) {
+                    detailHtml += '<div style="margin-bottom: 0.75rem;"><strong>💼 基本面:</strong><p style="margin: 0.25rem 0; color: var(--text-light); font-size: 0.875rem;">' + escapeHtml(result.fundamental_analysis) + '</p></div>';
+                }
+
+                // 消息面分析
+                if (result.news_summary) {
+                    detailHtml += '<div style="margin-bottom: 0.75rem;"><strong>📰 消息面:</strong><p style="margin: 0.25rem 0; color: var(--text-light); font-size: 0.875rem;">' + escapeHtml(result.news_summary) + '</p></div>';
+                }
+
+                // 操作建议
+                if (result.operation_advice) {
+                    detailHtml += '<div style="margin-bottom: 0.75rem;"><strong>🎯 操作建议:</strong> <span style="color: var(--primary); font-weight: 600;">' + escapeHtml(result.operation_advice) + '</span></div>';
+                }
+
+                // 风险提示
+                if (result.risk_warning) {
+                    detailHtml += '<div style="margin-bottom: 0.75rem;"><strong>⚠️ 风险提示:</strong><p style="margin: 0.25rem 0; color: #dc2626; font-size: 0.875rem;">' + escapeHtml(result.risk_warning) + '</p></div>';
+                }
+
+                detailHtml += '</div>';
+            } else {
+                // 精简报告格式
+                detailHtml = '<div class="task-detail" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">';
+
+                // 核心结论
+                if (result.analysis_summary) {
+                    detailHtml += '<div style="margin-bottom: 0.5rem;"><strong>📌 ' + escapeHtml(result.analysis_summary) + '</strong></div>';
+                }
+
+                // 趋势预测
+                if (result.trend_prediction) {
+                    detailHtml += '<div style="font-size: 0.875rem; margin-bottom: 0.25rem;"><strong>📊 趋势:</strong> ' + escapeHtml(result.trend_prediction) + '</div>';
+                }
+
+                // 操作建议
+                if (result.operation_advice) {
+                    detailHtml += '<div style="font-size: 0.875rem; margin-bottom: 0.25rem;"><strong>🎯 建议:</strong> ' + escapeHtml(result.operation_advice) + '</div>';
+                }
+
+                // 置信度
+                if (result.confidence_level) {
+                    detailHtml += '<div style="font-size: 0.875rem; margin-bottom: 0.25rem;"><strong>📈 置信度:</strong> ' + escapeHtml(result.confidence_level) + '</div>';
+                }
+
+                // 关键看点
+                if (result.key_points) {
+                    detailHtml += '<div style="font-size: 0.875rem; margin-top: 0.5rem;"><strong>💡 关键看点:</strong><p style="margin: 0.25rem 0; color: var(--text-light);">' + escapeHtml(result.key_points) + '</p></div>';
+                }
+
+                detailHtml += '</div>';
+            }
+        }
+
+        return '<div class="task-card ' + status + '" id="task_' + taskId + '" style="' + (isExpanded ? 'cursor: default;' : 'cursor: pointer;') + '" onclick="toggleTaskDetail(\\''+taskId+'\\')">' +
             '<div class="task-status">' + statusIcon + '</div>' +
             '<div class="task-main">' +
                 '<div class="task-header">' +
@@ -811,13 +884,31 @@ def render_config_page(
                     '<span>⏳ ' + calcDuration(task.start_time, task.end_time) + '</span>' +
                     '<span>' + (task.report_type === 'full' ? '📊完整' : '📝精简') + '</span>' +
                 '</div>' +
+                detailHtml +
             '</div>' +
             resultHtml +
             '<div class="task-actions">' +
-                '<button class="task-btn" onclick="removeTask(\\''+taskId+'\\')">×</button>' +
+                '<button class="task-btn" onclick="event.stopPropagation(); removeTask(\\''+taskId+'\\')">×</button>' +
             '</div>' +
         '</div>';
     }
+
+    // HTML 转义函数
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // 切换任务详情展开/收起
+    window.toggleTaskDetail = function(taskId) {
+        const taskData = tasks.get(taskId);
+        if (taskData && taskData.task && taskData.task.status === 'completed') {
+            taskData.expanded = !taskData.expanded;
+            renderAllTasks();
+        }
+    };
 
     function renderAllTasks() {
         if (tasks.size === 0) {
@@ -1158,7 +1249,7 @@ def render_subscription_page(subscription_list: list = None) -> bytes:
     )
 
 
-def render_futures_page(metrics_list: list = None, extreme_symbols: list = None) -> bytes:
+def render_futures_page(metrics_list: list = None, extreme_symbols: list = None, data_unavailable: bool = False) -> bytes:
     """
     渲染期货监控页面
     """
@@ -1166,6 +1257,19 @@ def render_futures_page(metrics_list: list = None, extreme_symbols: list = None)
         metrics_list = []
     if extreme_symbols is None:
         extreme_symbols = []
+
+    # 数据不可用提示
+    unavailable_alert = ""
+    if data_unavailable:
+        unavailable_alert = f"""
+        <div class="card" style="background: #fef3c7; border-color: #f59e0b;">
+          <div class="card-body" style="text-align: center; color: #92400e;">
+            <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">⚠️ 数据源暂时不可用</div>
+            <div style="font-size: 0.875rem;">无法从 Yahoo Finance 获取 CBOE 波动率指数数据（可能是网络问题或API限制）</div>
+            <div style="font-size: 0.75rem; margin-top: 0.5rem;">请稍后刷新页面重试，或配置代理/VPN</div>
+          </div>
+        </div>
+        """
 
     # 生成极端风险预警
     extreme_alert = ""

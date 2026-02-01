@@ -14,7 +14,7 @@ A股自选股智能分析系统 - 核心分析流水线
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 
 from src.config import get_config, Config
@@ -30,6 +30,11 @@ from bot.models import BotMessage
 
 
 logger = logging.getLogger(__name__)
+
+
+# 分析结果缓存（key: stock_code, value: (result, timestamp)）
+_analysis_cache: Dict[str, Tuple[AnalysisResult, datetime]] = {}
+_CACHE_TTL = timedelta(minutes=5)  # 缓存5分钟
 
 
 class StockAnalysisPipeline:
@@ -139,21 +144,51 @@ class StockAnalysisPipeline:
     def analyze_stock(self, code: str) -> Optional[AnalysisResult]:
         """
         分析单只股票（增强版：含量比、换手率、筹码分析、多维度情报）
-        
+
         流程：
-        1. 获取实时行情（量比、换手率）- 通过 DataFetcherManager 自动故障切换
-        2. 获取筹码分布 - 通过 DataFetcherManager 带熔断保护
-        3. 进行趋势分析（基于交易理念）
-        4. 多维度情报搜索（最新消息+风险排查+业绩预期）
-        5. 从数据库获取分析上下文
-        6. 调用 AI 进行综合分析
-        
+        1. 检查缓存（5分钟内的分析结果直接返回）
+        2. 获取实时行情（量比、换手率）- 通过 DataFetcherManager 自动故障切换
+        3. 获取筹码分布 - 通过 DataFetcherManager 带熔断保护
+        4. 进行趋势分析（基于交易理念）
+        5. 多维度情报搜索（最新消息+风险排查+业绩预期）
+        6. 从数据库获取分析上下文
+        7. 调用 AI 进行综合分析
+        8. 缓存结果
+
         Args:
             code: 股票代码
-            
+
         Returns:
             AnalysisResult 或 None（如果分析失败）
         """
+        global _analysis_cache, _CACHE_TTL
+
+        # 检查缓存
+        if code in _analysis_cache:
+            cached_result, cache_time = _analysis_cache[code]
+            if datetime.now() - cache_time < _CACHE_TTL:
+                logger.info(f"[{code}] 使用缓存的分析结果（{int((datetime.now() - cache_time).total_seconds())}秒前）")
+                # 克隆结果以避免修改原始数据
+                return AnalysisResult(
+                    code=cached_result.code,
+                    name=cached_result.name,
+                    sentiment_score=cached_result.sentiment_score,
+                    operation_advice=cached_result.operation_advice,
+                    trend_prediction=cached_result.trend_prediction,
+                    analysis_summary=cached_result.analysis_summary,
+                    technical_analysis=cached_result.technical_analysis,
+                    fundamental_analysis=cached_result.fundamental_analysis,
+                    news_summary=cached_result.news_summary,
+                    key_points=cached_result.key_points,
+                    confidence_level=cached_result.confidence_level,
+                    risk_warning=cached_result.risk_warning,
+                    dashboard=cached_result.dashboard
+                )
+            else:
+                # 缓存过期，清除
+                logger.info(f"[{code}] 缓存已过期，重新分析")
+                del _analysis_cache[code]
+
         try:
             # 获取股票名称（优先从实时行情获取真实名称）
             stock_name = STOCK_NAME_MAP.get(code, '')
