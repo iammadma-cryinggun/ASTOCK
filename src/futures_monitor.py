@@ -393,7 +393,7 @@ class FuturesVolatilityMonitor:
 
         return "\n".join(report_lines)
 
-    def get extreme_risk_symbols(self, symbols: List[str] = None) -> List[VolatilityMetrics]:
+    def get_extreme_risk_symbols(self, symbols: List[str] = None) -> List[VolatilityMetrics]:
         """
         获取所有极端风险的标的
 
