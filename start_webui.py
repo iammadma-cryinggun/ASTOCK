@@ -15,7 +15,7 @@ print("=" * 60)
 os.environ['SCHEDULE_ENABLED'] = 'false'
 os.environ['WEBUI_ENABLED'] = 'true'
 os.environ['WEBUI_HOST'] = '0.0.0.0'
-os.environ['WEBUI_PORT'] = '8000'
+os.environ['WEBUI_PORT'] = '8080'
 
 print(f"配置: WEBUI_ENABLED={os.getenv('WEBUI_ENABLED')}")
 print(f"配置: WEBUI_HOST={os.getenv('WEBUI_HOST')}")
@@ -30,7 +30,7 @@ try:
 
     # 启动服务器
     print("[2/3] 启动 WebUI 服务器...")
-    print(f"  地址: http://0.0.0.0:8000")
+    print(f"  地址: http://0.0.0.0:8080")
     print()
 
     print("[3/3] 运行中...")
@@ -43,7 +43,7 @@ try:
     print("=" * 60)
 
     # 前台运行（阻塞）
-    run_server(host='0.0.0.0', port=8000)
+    run_server(host='0.0.0.0', port=8080)
 
 except KeyboardInterrupt:
     print("\n退出")
