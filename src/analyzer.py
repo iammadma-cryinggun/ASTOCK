@@ -1216,9 +1216,9 @@ class GeminiAnalyzer:
         return json_str
     
     def _parse_text_response(
-        self, 
-        response_text: str, 
-        code: str, 
+        self,
+        response_text: str,
+        code: str,
         name: str
     ) -> AnalysisResult:
         """从纯文本响应中尽可能提取分析信息"""
@@ -1226,16 +1226,16 @@ class GeminiAnalyzer:
         sentiment_score = 50
         trend = '震荡'
         advice = '持有'
-        
+
         text_lower = response_text.lower()
-        
+
         # 简单的情绪识别
         positive_keywords = ['看多', '买入', '上涨', '突破', '强势', '利好', '加仓', 'bullish', 'buy']
         negative_keywords = ['看空', '卖出', '下跌', '跌破', '弱势', '利空', '减仓', 'bearish', 'sell']
-        
+
         positive_count = sum(1 for kw in positive_keywords if kw in text_lower)
         negative_count = sum(1 for kw in negative_keywords if kw in text_lower)
-        
+
         if positive_count > negative_count + 1:
             sentiment_score = 65
             trend = '看多'
@@ -1244,10 +1244,26 @@ class GeminiAnalyzer:
             sentiment_score = 35
             trend = '看空'
             advice = '卖出'
-        
+
         # 截取前500字符作为摘要
         summary = response_text[:500] if response_text else '无分析结果'
-        
+
+        # 创建空的 dashboard 结构，确保报告格式化时不会出错
+        empty_dashboard = {
+            'core_conclusion': {
+                'one_sentence': summary[:100] if summary else '分析结果仅供参考',
+                'signal_type': '⚠️数据不足',
+                'time_sensitivity': '不急',
+                'position_advice': {
+                    'no_position': '建议进一步分析后再做决策',
+                    'has_position': '建议谨慎持有'
+                }
+            },
+            'data_perspective': {},
+            'intelligence': {},
+            'battle_plan': {}
+        }
+
         return AnalysisResult(
             code=code,
             name=name,
@@ -1259,6 +1275,7 @@ class GeminiAnalyzer:
             key_points='JSON解析失败，仅供参考',
             risk_warning='分析结果可能不准确，建议结合其他信息判断',
             raw_response=response_text,
+            dashboard=empty_dashboard,  # ✅ 添加 dashboard 字段
             success=True,
         )
     
