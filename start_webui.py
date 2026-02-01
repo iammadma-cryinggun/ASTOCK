@@ -1,88 +1,55 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-===================================
-Zeabur WebUI 专用启动脚本
-===================================
-确保 Zeabur 部署时只运行 WebUI，不执行定时任务
+WebUI 启动脚本 - Zeabur 专用
 """
-
 import sys
 import os
 import time
-import logging
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s | %(levelname)-8s | %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+print("=" * 60)
+print("Zeabur WebUI 启动中...")
+print("=" * 60)
 
-logger = logging.getLogger(__name__)
-
-# 禁用定时任务（确保不会自动执行分析）
+# 强制设置环境变量
 os.environ['SCHEDULE_ENABLED'] = 'false'
+os.environ['WEBUI_ENABLED'] = 'true'
+os.environ['WEBUI_HOST'] = '0.0.0.0'
+os.environ['WEBUI_PORT'] = '8000'
 
-# 确保 WebUI 启用
-if os.getenv('WEBUI_ENABLED', 'false').lower() != 'true':
-    os.environ['WEBUI_ENABLED'] = 'true'
+print(f"配置: WEBUI_ENABLED={os.getenv('WEBUI_ENABLED')}")
+print(f"配置: WEBUI_HOST={os.getenv('WEBUI_HOST')}")
+print(f"配置: WEBUI_PORT={os.getenv('WEBUI_PORT')}")
+print()
 
-# 设置默认端口
-if not os.getenv('WEBUI_PORT'):
-    os.environ['WEBUI_PORT'] = '8000'
+try:
+    # 测试导入
+    print("[1/3] 导入模块...")
+    from web.server import run_server
+    print("  OK")
 
-if not os.getenv('WEBUI_HOST'):
-    os.environ['WEBUI_HOST'] = '0.0.0.0'
+    # 启动服务器
+    print("[2/3] 启动 WebUI 服务器...")
+    print(f"  地址: http://0.0.0.0:8000")
+    print()
 
+    print("[3/3] 运行中...")
+    print("可用端点:")
+    print("  GET  /              配置页面")
+    print("  GET  /health        健康检查")
+    print("  GET  /history       历史记录")
+    print("  GET  /futures       期货监控")
+    print()
+    print("=" * 60)
 
-def main():
-    """启动 WebUI 服务"""
-    logger.info("=" * 60)
-    logger.info("Zeabur WebUI 服务启动")
-    logger.info("=" * 60)
-    logger.info(f"运行时间: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info()
+    # 前台运行（阻塞）
+    run_server(host='0.0.0.0', port=8000)
 
-    # 检查环境变量
-    webui_enabled = os.getenv('WEBUI_ENABLED', 'false')
-    webui_host = os.getenv('WEBUI_HOST', '127.0.0.1')
-    webui_port = os.getenv('WEBUI_PORT', '8000')
-
-    logger.info(f"配置信息:")
-    logger.info(f"  WEBUI_ENABLED: {webui_enabled}")
-    logger.info(f"  WEBUI_HOST: {webui_host}")
-    logger.info(f"  WEBUI_PORT: {webui_port}")
-    logger.info(f"  SCHEDULE_ENABLED: {os.getenv('SCHEDULE_ENABLED', 'false')}")
-    logger.info()
-
-    try:
-        # 导入并启动 WebUI
-        from web.server import run_server
-
-        logger.info(f"WebUI 服务启动: http://{webui_host}:{webui_port}")
-        logger.info("可用端点:")
-        logger.info("  GET  /              配置页面")
-        logger.info("  GET  /health        健康检查")
-        logger.info("  GET  /history       历史记录")
-        logger.info("  GET  /futures       期货监控")
-        logger.info("  GET  /analysis?code=xxx  触发分析")
-        logger.info()
-        logger.info("按 Ctrl+C 退出...")
-        logger.info()
-
-        # 前台运行（阻塞）
-        run_server(host=webui_host, port=webui_port)
-
-    except KeyboardInterrupt:
-        logger.info("\n用户中断，程序退出")
-        return 0
-    except Exception as e:
-        logger.error(f"启动失败: {e}")
-        import traceback
-        traceback.print_exc()
-        return 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())
+except KeyboardInterrupt:
+    print("\n退出")
+    sys.exit(0)
+except Exception as e:
+    print(f"\n错误: {e}")
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
