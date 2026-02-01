@@ -29,15 +29,15 @@ RUN mkdir -p /app/data /app/logs /app/reports
 ENV PYTHONUNBUFFERED=1
 ENV WEBUI_ENABLED=true
 ENV WEBUI_HOST=0.0.0.0
-ENV WEBUI_PORT=8000
+ENV WEBUI_PORT=8080
 ENV SCHEDULE_ENABLED=false
 
-# 暴露端口
-EXPOSE 8000
+# 暴露端口（容器内部端口 = Zeabur 外部端口）
+EXPOSE 8080
 
-# 健康检查
+# 健康检查使用容器内部端口
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 0
+    CMD curl -f http://localhost:8080/health || exit 0
 
 # 启动命令（强制使用 start_webui.py）
 CMD ["python", "start_webui.py"]
