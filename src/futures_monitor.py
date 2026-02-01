@@ -145,9 +145,10 @@ class FuturesVolatilityMonitor:
 
     def estimate_iv_from_options(self, symbol: str) -> Optional[float]:
         """
-        从期权数据估算隐含波动率
+        从真实的波动率指数获取隐含波动率
 
-        这是一个简化版本，实际应该从期权链数据计算
+        使用真实的波动率指数（VIX、GVZ、OVX）而不是简化估算
+        这些指数本身就是市场预期的波动率，可以直接作为 IV 使用
 
         Args:
             symbol: 标的代码
@@ -155,8 +156,19 @@ class FuturesVolatilityMonitor:
         Returns:
             隐含波动率（百分比）
         """
-        # TODO: 实现真实的期权IV获取
-        # 这里使用简化方法：基于 HV + 风险溢价估算
+        from src.volatility_index import get_volatility_fetcher
+
+        fetcher = get_volatility_fetcher()
+
+        # 获取真实的波动率指数
+        iv_value = fetcher.get_volatility_index(symbol)
+
+        if iv_value is not None:
+            logger.info(f"获取 {symbol} 的真实 IV 指数: {iv_value:.2f}%")
+            return iv_value
+
+        # 回退到估算方法（当指数数据不可用时）
+        logger.warning(f"无法获取 {symbol} 的波动率指数，使用估算方法")
 
         try:
             if self.data_provider:
@@ -166,10 +178,10 @@ class FuturesVolatilityMonitor:
                     prices = pd.Series([d['close'] for d in data])
                     hv = self.calculate_hv(prices, window=20)
 
-                    # 简化的IV估算：HV + 波动率风险溢价
-                    # 实际应该从期权链的 ATM 期权 IV 计算
-                    iv_estimate = hv * 1.2  # 假设20%的风险溢价
+                    # 保守估算：HV + 10% 风险溢价（而不是之前的 20%）
+                    iv_estimate = hv * 1.1
 
+                    logger.warning(f"{symbol} 使用估算 IV: {iv_estimate:.2f}% (基于 HV: {hv:.2f}%)")
                     return iv_estimate
         except Exception as e:
             logger.warning(f"估算 IV 失败: {symbol} - {e}")
