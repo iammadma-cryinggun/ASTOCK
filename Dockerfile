@@ -31,10 +31,11 @@ ENV WEBUI_HOST=0.0.0.0
 ENV WEBUI_PORT=8000
 ENV SCHEDULE_ENABLED=false
 
-# 暴露端口
+# 暴露端口（容器内部端口）
 EXPOSE 8000
 
-# 健康检查
+# Zeabur 会将容器 8000 端口映射到外部 8080 端口
+# 健康检查使用容器内部端口
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 0
 
