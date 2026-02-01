@@ -24,7 +24,7 @@ from datetime import datetime
 from typing import Dict, Any, TYPE_CHECKING
 
 from web.services import get_config_service, get_analysis_service
-from web.templates import render_config_page
+from web.templates import render_config_page, render_futures_page
 from src.enums import ReportType
 
 if TYPE_CHECKING:
@@ -122,6 +122,41 @@ class PageHandler:
 
         body = render_history_page(history_dicts, stock_codes)
         return HtmlResponse(body)
+
+    def handle_futures(self) -> Response:
+        """处理期货波动率监控页面 GET /futures"""
+        from src.futures_monitor import get_volatility_monitor
+        from web.services import get_data_provider_service
+
+        try:
+            # 获取数据提供者
+            data_service = get_data_provider_service()
+            data_provider = data_service.get_provider()
+
+            # 创建监控器
+            monitor = get_volatility_monitor(data_provider)
+
+            # 获取所有默认标的的指标
+            symbols = list(monitor.DEFAULT_SYMBOLS.keys())
+            results = []
+            for symbol in symbols:
+                name = monitor.DEFAULT_SYMBOLS.get(symbol, symbol)
+                metrics = monitor.analyze_symbol(symbol, name)
+                if metrics:
+                    results.append(metrics.to_dict())
+
+            # 获取极端风险标的
+            extreme_symbols = monitor.get_extreme_risk_symbols(symbols)
+            extreme_dicts = [m.to_dict() for m in extreme_symbols]
+
+            body = render_futures_page(results, extreme_dicts)
+            return HtmlResponse(body)
+
+        except Exception as e:
+            logger.error(f"[PageHandler] 获取期货监控数据失败: {e}")
+            # 返回空页面
+            body = render_futures_page([], [])
+            return HtmlResponse(body)
 
     def handle_update(self, form_data: Dict[str, list]) -> Response:
         """
@@ -298,6 +333,139 @@ class ApiHandler:
             )
 
         return JsonResponse({"success": True, "detail": detail.to_dict()})
+
+    def handle_futures_volatility(self, query: Dict[str, list]) -> Response:
+        """
+        获取期货波动率监控数据 GET /api/futures/volatility
+
+        Args:
+            query: URL 查询参数 (可选 symbols)
+
+        Returns:
+            {
+                "success": true,
+                "metrics": [...],
+                "extreme_count": 2
+            }
+        """
+        from src.futures_monitor import get_volatility_monitor
+        from web.services import get_data_provider_service
+
+        try:
+            # 获取数据提供者
+            data_service = get_data_provider_service()
+            data_provider = data_service.get_provider()
+
+            # 获取要监控的标的
+            symbols_list = query.get("symbols", [])
+            if symbols_list and symbols_list[0]:
+                symbols = [s.strip().upper() for s in symbols_list[0].split(',')]
+            else:
+                monitor = get_volatility_monitor(data_provider)
+                symbols = list(monitor.DEFAULT_SYMBOLS.keys())
+
+            # 创建监控器并获取指标
+            monitor = get_volatility_monitor(data_provider)
+            results = []
+            for symbol in symbols:
+                name = monitor.DEFAULT_SYMBOLS.get(symbol, symbol)
+                metrics = monitor.analyze_symbol(symbol, name)
+                if metrics:
+                    results.append(metrics.to_dict())
+
+            # 获取极端风险标的
+            extreme_symbols = monitor.get_extreme_risk_symbols(symbols)
+
+            return JsonResponse({
+                "success": True,
+                "metrics": results,
+                "extreme_count": len(extreme_symbols),
+                "total_count": len(results)
+            })
+
+        except Exception as e:
+            logger.error(f"[ApiHandler] 获取期货波动率数据失败: {e}")
+            return JsonResponse(
+                {"success": False, "error": str(e)},
+                status=HTTPStatus.INTERNAL_SERVER_ERROR
+            )
+
+    def handle_futures_extreme_risk(self, query: Dict[str, list]) -> Response:
+        """
+        获取极端风险标的 GET /api/futures/extreme-risk
+
+        Returns:
+            {
+                "success": true,
+                "extreme_symbols": [...],
+                "count": 2
+            }
+        """
+        from src.futures_monitor import get_volatility_monitor
+        from web.services import get_data_provider_service
+
+        try:
+            # 获取数据提供者
+            data_service = get_data_provider_service()
+            data_provider = data_service.get_provider()
+
+            # 创建监控器
+            monitor = get_volatility_monitor(data_provider)
+            symbols = list(monitor.DEFAULT_SYMBOLS.keys())
+
+            # 获取极端风险标的
+            extreme_symbols = monitor.get_extreme_risk_symbols(symbols)
+            extreme_dicts = [m.to_dict() for m in extreme_symbols]
+
+            return JsonResponse({
+                "success": True,
+                "extreme_symbols": extreme_dicts,
+                "count": len(extreme_dicts)
+            })
+
+        except Exception as e:
+            logger.error(f"[ApiHandler] 获取极端风险标的失败: {e}")
+            return JsonResponse(
+                {"success": False, "error": str(e)},
+                status=HTTPStatus.INTERNAL_SERVER_ERROR
+            )
+
+    def handle_futures_report(self, query: Dict[str, list]) -> Response:
+        """
+        生成期货波动率风险报告 GET /api/futures/report
+
+        Returns:
+            {
+                "success": true,
+                "report": "文本报告"
+            }
+        """
+        from src.futures_monitor import get_volatility_monitor
+        from web.services import get_data_provider_service
+
+        try:
+            # 获取数据提供者
+            data_service = get_data_provider_service()
+            data_provider = data_service.get_provider()
+
+            # 创建监控器
+            monitor = get_volatility_monitor(data_provider)
+            symbols = list(monitor.DEFAULT_SYMBOLS.keys())
+
+            # 生成报告
+            report = monitor.generate_risk_report(symbols)
+
+            return JsonResponse({
+                "success": True,
+                "report": report
+            })
+
+        except Exception as e:
+            logger.error(f"[ApiHandler] 生成期货报告失败: {e}")
+            return JsonResponse(
+                {"success": False, "error": str(e)},
+                status=HTTPStatus.INTERNAL_SERVER_ERROR
+            )
 
 
 # ============================================================
