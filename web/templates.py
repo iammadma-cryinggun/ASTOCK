@@ -922,6 +922,7 @@ def render_config_page(
                 '<div class="task-meta">' +
                     '<span>⏱ ' + formatTime(task.start_time) + '</span>' +
                     '<span>⏳ ' + calcDuration(task.start_time, task.end_time) + '</span>' +
+                    (result.cached ? '<span style="color: var(--success);">💾 缓存</span>' : '') +
                     '<span>' + (task.report_type === 'full' ? '📊完整' : '📝精简') + '</span>' +
                 '</div>' +
                 detailHtml +
@@ -1155,16 +1156,77 @@ def render_config_page(
           </div>
           <div class="card-body">
             <div style="font-size: 0.875rem; line-height: 1.8;">
-              <p><strong>📈 技术面数据：</strong>AkShare/Tushare/Yahoo Finance (实时行情+历史数据)</p>
-              <p><strong>📰 新闻数据：</strong>Tavily/SerpAPI/Bocha (多维度实时搜索)</p>
-              <p><strong>🤖 AI 分析：</strong>Google Gemini / OpenAI 兼容 API (temperature=0.0 确保一致性)</p>
-              <p><strong>📊 分析维度：</strong>技术面(MA/量能) + 基本面 + 消息面 + 趋势分析</p>
+              <!-- 技术面数据 -->
+              <p style="margin: 0.5rem 0;">
+                <strong>📈 技术面数据来源：</strong><br>
+                <span style="color: var(--text-muted); font-size: 0.8rem;">
+                  • 历史行情: AkShare/Tushare/Baostock/Yahoo Finance (多源备份)<br>
+                  • 实时行情: 东方财富/新浪财经 (价格、量比、换手率)<br>
+                  • 筹码分布: 盈利比例、90%集中度<br>
+                  • 趋势分析: MA5/MA10/MA20 多头排列判断
+                </span>
+              </p>
+
+              <!-- 新闻数据 -->
+              <p style="margin: 0.5rem 0;">
+                <strong>📰 新闻数据来源：</strong><br>
+                <span style="color: var(--text-muted); font-size: 0.8rem;">
+                  • 搜索引擎: Tavily/SerpAPI/Bocha (智能负载均衡)<br>
+                  • 搜索维度: 📰最新消息 + 📈机构分析 + ⚠️风险排查 + 📊业绩预期 + 🏭行业分析<br>
+                  • 情绪分析: FinBERT-Chinese 模型 (新闻情绪评分)<br>
+                  • 数据时效: 实时搜索 (最近7天)
+                </span>
+              </p>
+
+              <!-- AI 分析 -->
+              <p style="margin: 0.5rem 0;">
+                <strong>🤖 AI 分析引擎：</strong><br>
+                <span style="color: var(--text-muted); font-size: 0.8rem;">
+                  • 主模型: Google Gemini (flash/pro 自动切换)<br>
+                  • 备用模型: OpenAI 兼容 API (DeepSeek/千问等)<br>
+                  • 温度参数: temperature=0.0 (确保相同输入产生相同输出)<br>
+                  • 缓存机制: 5分钟内重复请求使用缓存结果
+                </span>
+              </p>
+
+              <!-- 分析维度 -->
+              <p style="margin: 0.5rem 0;">
+                <strong>📊 分析维度说明：</strong><br>
+                <span style="color: var(--text-muted); font-size: 0.8rem;">
+                  • 技术面: 均线系统(MA5/10/20) + 量能分析 + K线形态<br>
+                  • 基本面: 板块地位 + 行业趋势<br>
+                  • 消息面: 多维度新闻 + 情绪评分(🟢正面/🔴负面/⚪中性)<br>
+                  • 趋势分析: 多头排列 + 乖离率 + 支撑/压力位
+                </span>
+              </p>
+
               <hr style="border: none; border-top: 1px solid var(--border); margin: 1rem 0;">
-              <p><strong>报告类型说明：</strong></p>
-              <ul style="margin: 0.5rem 0; padding-left: 1.25rem;">
-                <li><strong>精简报告</strong>：快速查看核心结论、买卖点位、操作建议</li>
-                <li><strong>完整报告</strong>：深度分析技术面/基本面/消息面，包含决策仪表盘、数据透视、情报分析、作战计划</li>
-              </ul>
+
+              <!-- 报告类型 -->
+              <p style="margin: 0.5rem 0;"><strong>📋 报告类型对比：</strong></p>
+              <div style="margin: 0.5rem 0; font-size: 0.8rem;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 0.5rem; font-weight: 600;">📝 精简报告</td>
+                    <td style="padding: 0.5rem; color: var(--text-muted);">
+                      核心结论 + 趋势预测 + 操作建议 + 置信度 + 关键看点
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 0.5rem; font-weight: 600;">📊 完整报告</td>
+                    <td style="padding: 0.5rem; color: var(--text-muted);">
+                      精简报告内容 + 技术面分析 + 基本面分析 + 新闻详情列表 + 风险提示
+                    </td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- 重要说明 -->
+              <p style="margin: 0.75rem 0 0 0; padding: 0.5rem; background: var(--bg-secondary); border-left: 3px solid var(--primary); font-size: 0.8rem;">
+                <strong>💡 重要说明：</strong><br>
+                • 精简报告和完整报告使用<strong>相同的分析逻辑</strong>，区别仅在于显示内容的详细程度<br>
+                • 分析结果由 AI 基于技术面、基本面、消息面综合判断得出，仅供参考，不构成投资建议
+              </p>
             </div>
           </div>
         </div>

@@ -193,11 +193,13 @@ class AnalysisResult:
     key_points: str = ""  # 核心看点（3-5个要点）
     risk_warning: str = ""  # 风险提示
     buy_reason: str = ""  # 买入/卖出理由
-    
+
     # ========== 元数据 ==========
     raw_response: Optional[str] = None  # 原始响应（调试用）
     search_performed: bool = False  # 是否执行了联网搜索
     data_sources: str = ""  # 数据来源说明
+    cached: bool = False  # 是否使用了缓存
+    cache_time: Optional[str] = None  # 缓存时间（ISO格式）
     success: bool = True
     error_message: Optional[str] = None
     
@@ -230,6 +232,8 @@ class AnalysisResult:
             'risk_warning': self.risk_warning,
             'buy_reason': self.buy_reason,
             'search_performed': self.search_performed,
+            'cached': self.cached,  # 是否使用缓存
+            'cache_time': self.cache_time,  # 缓存时间
             'success': self.success,
             'error_message': self.error_message,
         }
