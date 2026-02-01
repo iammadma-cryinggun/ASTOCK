@@ -184,6 +184,7 @@ class AnalysisResult:
     
     # ========== 情绪面/消息面分析 ==========
     news_summary: str = ""  # 近期重要新闻/公告摘要
+    news_list: List[Dict[str, Any]] = None  # 原始新闻列表（带情绪评分）
     market_sentiment: str = ""  # 市场情绪分析
     hot_topics: str = ""  # 相关热点话题
     
@@ -221,6 +222,7 @@ class AnalysisResult:
             'sector_position': self.sector_position,
             'company_highlights': self.company_highlights,
             'news_summary': self.news_summary,
+            'news_list': self.news_list if self.news_list is not None else [],  # 原始新闻列表（带情绪评分）
             'market_sentiment': self.market_sentiment,
             'hot_topics': self.hot_topics,
             'analysis_summary': self.analysis_summary,
@@ -790,23 +792,25 @@ class GeminiAnalyzer:
         raise last_error or Exception("所有 AI API 调用失败，已达最大重试次数")
     
     def analyze(
-        self, 
+        self,
         context: Dict[str, Any],
-        news_context: Optional[str] = None
+        news_context: Optional[str] = None,
+        news_list: Optional[List[Dict[str, Any]]] = None
     ) -> AnalysisResult:
         """
         分析单只股票
-        
+
         流程：
         1. 格式化输入数据（技术面 + 新闻）
         2. 调用 Gemini API（带重试和模型切换）
         3. 解析 JSON 响应
         4. 返回结构化结果
-        
+
         Args:
             context: 从 storage.get_analysis_context() 获取的上下文数据
-            news_context: 预先搜索的新闻内容（可选）
-            
+            news_context: 预先搜索的新闻内容（文本格式，用于 AI 分析）
+            news_list: 原始新闻列表（带情绪评分，用于前端展示）
+
         Returns:
             AnalysisResult 对象
         """
@@ -893,7 +897,10 @@ class GeminiAnalyzer:
             result = self._parse_response(response_text, code, name)
             result.raw_response = response_text
             result.search_performed = bool(news_context)
-            
+            # 保留原始新闻列表（带情绪评分）
+            if news_list:
+                result.news_list = news_list
+
             logger.info(f"[LLM解析] {name}({code}) 分析完成: {result.trend_prediction}, 评分 {result.sentiment_score}")
             
             return result

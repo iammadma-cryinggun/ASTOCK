@@ -285,6 +285,7 @@ class AnalysisService:
                     "technical_analysis": result.technical_analysis,
                     "fundamental_analysis": result.fundamental_analysis,
                     "news_summary": result.news_summary,
+                    "news_list": result.news_list if hasattr(result, 'news_list') else [],  # 原始新闻列表（带情绪评分）
                     "key_points": result.key_points,
                     "risk_warning": result.risk_warning,
 
