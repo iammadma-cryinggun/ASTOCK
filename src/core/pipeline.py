@@ -293,7 +293,13 @@ class StockAnalysisPipeline:
             
             # Step 7: 调用 AI 分析（传入增强的上下文和新闻）
             result = self.analyzer.analyze(enhanced_context, news_context=news_context)
-            
+
+            # Step 8: 保存到缓存（确保短时间内重复分析使用相同结果）
+            if result:
+                global _analysis_cache, _CACHE_TTL
+                _analysis_cache[code] = (result, datetime.now())
+                logger.info(f"[{code}] 分析结果已缓存，{_CACHE_TTL.seconds}秒内重复请求将使用缓存")
+
             return result
             
         except Exception as e:

@@ -270,13 +270,26 @@ class AnalysisService:
             )
             
             if result:
+                # 完整返回所有字段，确保前端能显示完整报告
                 result_data = {
+                    # 基础字段
                     "code": result.code,
                     "name": result.name,
                     "sentiment_score": result.sentiment_score,
                     "operation_advice": result.operation_advice,
                     "trend_prediction": result.trend_prediction,
+                    "confidence_level": result.confidence_level,
                     "analysis_summary": result.analysis_summary,
+
+                    # 详细分析字段（前端展开时显示）
+                    "technical_analysis": result.technical_analysis,
+                    "fundamental_analysis": result.fundamental_analysis,
+                    "news_summary": result.news_summary,
+                    "key_points": result.key_points,
+                    "risk_warning": result.risk_warning,
+
+                    # 决策仪表盘数据（如果有的话）
+                    "dashboard": result.dashboard if hasattr(result, 'dashboard') else None,
                 }
 
                 # 保存分析历史记录
