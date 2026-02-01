@@ -26,6 +26,8 @@ numpy>=1.24.0               # 数值计算
 # AI 分析
 google-generativeai>=0.8.0  # Gemini API
 openai>=1.0.0               # OpenAI 兼容 API（可选，支持 DeepSeek/通义千问等）
+transformers>=4.30.0        # Hugging Face Transformers（用于本地加载 FinBERT）
+torch>=2.0.0                # PyTorch（Transformers 依赖）
 
 # 搜索引擎（用于获取股票新闻）
 tavily-python>=0.3.0        # Tavily 搜索 API（每月 1000 次免费）
