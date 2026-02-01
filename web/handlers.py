@@ -25,6 +25,7 @@ from typing import Dict, Any, TYPE_CHECKING
 
 from web.services import get_config_service, get_analysis_service
 from web.templates import render_config_page, render_futures_page, render_subscription_page
+# 延迟导入 render_history_page，避免循环导入
 from src.enums import ReportType
 
 if TYPE_CHECKING:
@@ -110,6 +111,7 @@ class PageHandler:
     def handle_history(self) -> Response:
         """处理历史记录页面 GET /history"""
         from src.storage import DatabaseManager
+        from web.templates import render_history_page  # 延迟导入
 
         db = DatabaseManager.get_instance()
 
