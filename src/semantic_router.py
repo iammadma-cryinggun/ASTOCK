@@ -73,15 +73,30 @@ class FinBERTClient:
             api_key: Hugging Face API Key（可选，免费版有限制）
         """
         self.api_key = api_key
-        # 使用可用的中文金融情绪分析模型
-        # 模型信息：https://huggingface.co/yiyanghkust/finbert-tone-chinese
-        self.api_url = "https://api-inference.huggingface.co/models/yiyanghkust/finbert-tone-chinese"
-        self.is_available = bool(api_key)
+        # 模型 URL（Transformers 模式下不需要）
+        self.api_url = None
+        self.model_id = "chtma/finbert-chinese"
+        self._pipeline = None
+        # Transformers 模式：直接加载模型，不需要 API Key
+        self.is_available = True  # 总是尝试加载
 
         if self.is_available:
-            logger.info(f"[FinBERT] 客户端初始化成功（API模式）")
-        else:
-            logger.warning("[FinBERT] 未配置 API Key，功能将不可用")
+            logger.info(f"[FinBERT] 客户端初始化成功（Transformers模式）")
+
+    def _load_pipeline(self):
+        """延迟加载 Transformers pipeline"""
+        if self._pipeline is not None:
+            return self._pipeline
+
+        try:
+            from transformers import pipeline
+            logger.info(f"[FinBERT] 正在加载模型: {self.model_id}")
+            self._pipeline = pipeline("text-classification", model=self.model_id)
+            logger.info("[FinBERT] 模型加载成功")
+            return self._pipeline
+        except Exception as e:
+            logger.error(f"[FinBERT] 模型加载失败: {e}")
+            return None
 
     def analyze_sentiment(self, text: str) -> Optional[SentimentResult]:
         """
@@ -98,31 +113,21 @@ class FinBERTClient:
             return None
 
         try:
-            import requests
+            # 延迟加载模型
+            pipeline = self._load_pipeline()
+            if pipeline is None:
+                return None
 
             start_time = time.time()
 
-            # 调用 Hugging Face Inference API
-            headers = {"Authorization": f"Bearer {self.api_key}"}
-            response = requests.post(
-                self.api_url,
-                headers=headers,
-                json={"inputs": text},
-                timeout=10
-            )
+            # 使用 Transformers pipeline 推理
+            result = pipeline(text)
 
             elapsed = time.time() - start_time
 
-            if response.status_code != 200:
-                logger.warning(f"[FinBERT] API 返回错误: {response.status_code}")
-                return None
-
-            # 解析响应
-            result = response.json()
-
-            # FinBERT 返回格式: [[{'label': 'positive', 'score': 0.98}, ...]]
-            if isinstance(result, list) and len(result) > 0:
-                predictions = result[0]
+            # FinBERT 返回格式: [{'label': 'positive', 'score': 0.98}, ...]
+            if isinstance(result, list):
+                predictions = result
 
                 # 转换为字典便于查找
                 pred_dict = {p['label']: p['score'] for p in predictions}
@@ -132,27 +137,20 @@ class FinBERTClient:
                 negative_conf = pred_dict.get('negative', 0.0)
                 neutral_conf = pred_dict.get('neutral', 0.0)
 
-                # 关键改进：考虑三个标签的相对关系，不只是看最高分
-                # 只有当某个情绪明显高于中性时，才判定为该情绪
-                # 这样避免将"难以判断"的新闻误判为正面或负面
-
+                # 三层判断逻辑
                 if neutral_conf >= positive_conf and neutral_conf >= negative_conf:
-                    # 中性置信度最高，或并列最高
                     label = 'neutral'
                     raw_score = neutral_conf
                     score = 0.0
                 elif positive_conf > neutral_conf + 0.2:
-                    # 正面置信度明显高于中性（领先至少20%）
                     label = 'positive'
                     raw_score = positive_conf
-                    score = positive_conf  # 0 ~ 1
+                    score = positive_conf
                 elif negative_conf > neutral_conf + 0.2:
-                    # 负面置信度明显高于中性（领先至少20%）
                     label = 'negative'
                     raw_score = negative_conf
-                    score = -negative_conf  # -1 ~ 0
+                    score = -negative_conf
                 else:
-                    # 某个情绪领先，但不够明显，判定为中性
                     label = 'neutral'
                     raw_score = neutral_conf
                     score = 0.0
