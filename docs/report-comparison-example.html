@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>报告类型对比 - 中国中免(601888)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .report-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .report-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .report-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .report-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .badge-simple {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-full {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .task-meta span {
+            background: #f3f4f6;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .section-title {
+            font-weight: 600;
+            margin: 15px 0 10px 0;
+            padding-left: 10px;
+            border-left: 3px solid #3b82f6;
+        }
+
+        .content {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 8px;
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+
+        .news-item {
+            background: #f3f4f6;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 3px solid #d1d5db;
+        }
+
+        .news-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 8px;
+        }
+
+        .news-title {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .news-sentiment {
+            font-size: 0.875rem;
+        }
+
+        .news-snippet {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin: 8px 0;
+        }
+
+        .news-meta {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+
+        .info-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+
+        .info-box strong {
+            color: #92400e;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .comparison-table th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
+
+        .check-simple {
+            color: #3b82f6;
+        }
+
+        .check-full {
+            color: #10b981;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 报告类型对比示例</h1>
+            <p>中国中免(601888) - 2025-01-15 分析</p>
+        </div>
+
+        <div class="info-box">
+            <strong>💡 核心要点：</strong>精简报告和完整报告使用<b>完全相同的分析逻辑</b>和<b>完全相同的数据</b>，区别仅在于<b>显示的字段数量</b>。
+        </div>
+
+        <div class="comparison-grid">
+            <!-- 精简报告 -->
+            <div class="report-card">
+                <div class="report-header">
+                    <span class="report-title">📝 精简报告</span>
+                    <span class="report-badge badge-simple">5个字段</span>
+                </div>
+                <div class="task-meta">
+                    <span>⏱ 14:30</span>
+                    <span>⏳ 2m5s</span>
+                    <span>📝精简</span>
+                </div>
+
+                <div class="content">
+                    <div class="section-title">📌 核心结论</div>
+                    <div style="font-weight: 600; margin-bottom: 12px;">
+                        中国中免(601888) - 短期震荡调整，中长期仍具备配置价值
+                    </div>
+
+                    <div>📊 <strong>趋势:</strong> 震荡</div>
+                    <div>🎯 <strong>建议:</strong> 观望</div>
+                    <div>📈 <strong>置信度:</strong> 中</div>
+
+                    <div class="section-title">💡 关键看点</div>
+                    <ul style="padding-left: 20px; color: #4b5563;">
+                        <li>MA5/MA10/MA20 缠绕，短期方向不明</li>
+                        <li>量比0.8，换手率1.2%，交投清淡</li>
+                        <li>新闻面整体偏中性，需关注业绩预告</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 完整报告 -->
+            <div class="report-card">
+                <div class="report-header">
+                    <span class="report-title">📊 完整报告</span>
+                    <span class="report-badge badge-full">11个字段</span>
+                </div>
+                <div class="task-meta">
+                    <span>⏱ 14:30</span>
+                    <span>⏳ 2m5s</span>
+                    <span>📊完整</span>
+                </div>
+
+                <div class="content">
+                    <div class="section-title">📌 核心结论</div>
+                    <div style="font-weight: 600; margin-bottom: 12px;">
+                        中国中免(601888) - 短期震荡调整，中长期仍具备配置价值
+                    </div>
+
+                    <div class="section-title">📈 技术面分析</div>
+                    <div style="margin-bottom: 12px;">
+                        MA5/MA10/MA20 均线系统呈现缠绕状态，短期方向不明。<br>
+                        MA5(85.2) &lt; MA10(86.5) &lt; MA20(87.1)，呈现空头排列。<br>
+                        量比0.8，换手率1.2%，今日交投清淡，观望情绪浓厚。<br>
+                        MACD(0.05)处于零轴附近，KDJ(45,50,55)中性区域。
+                    </div>
+
+                    <div class="section-title">💼 基本面分析</div>
+                    <div style="margin-bottom: 12px;">
+                        公司作为免税行业龙头，受益于消费复苏趋势。<br>
+                        近期无重大财报披露，需关注年报预告时间。<br>
+                        行业竞争加剧，毛利率承压，但龙头地位稳固。
+                    </div>
+
+                    <div class="section-title">📰 消息面</div>
+                    <div style="margin-bottom: 12px;">
+                        近期公司公告减持计划，短期股价承压。<br>
+                        行业政策利好预期增强，有望迎来政策窗口期。
+                    </div>
+
+                    <div class="section-title">📰 新闻详情（含情绪评分）</div>
+
+                    <div class="news-item">
+                        <div class="news-header">
+                            <div>
+                                <span style="font-size: 0.75rem; color: #6b7280;">⚠️ 风险排查</span>
+                                <a href="#" class="news-title">控股股东减持5%股份</a>
+                            </div>
+                            <span class="news-sentiment">🔴负面</span>
+                        </div>
+                        <div class="news-snippet">
+                            公司公告控股股东减持5%股份，减持价格区间为85-90元/股，市场情绪承压。
+                        </div>
+                        <div class="news-meta">
+                            评分: -0.72 | 上海证券报 | 2025-01-15
+                        </div>
+                    </div>
+
+                    <div class="news-item">
+                        <div class="news-header">
+                            <div>
+                                <span style="font-size: 0.75rem; color: #6b7280;">📰 最新消息</span>
+                                <a href="#" class="news-title">中国中免发布业绩预告</a>
+                            </div>
+                            <span class="news-sentiment">🟢正面</span>
+                        </div>
+                        <div class="news-snippet">
+                            公司发布2024年度业绩预告，预计净利润同比增长50%-60%，超市场预期。
+                        </div>
+                        <div class="news-meta">
+                            评分: +0.65 | 东方财富 | 2025-01-14
+                        </div>
+                    </div>
+
+                    <div class="news-item">
+                        <div class="news-header">
+                            <div>
+                                <span style="font-size: 0.75rem; color: #6b7280;">📈 机构分析</span>
+                                <a href="#" class="news-title">中金公司维持"跑赢行业"评级</a>
+                            </div>
+                            <span class="news-sentiment">🟢正面</span>
+                        </div>
+                        <div class="news-snippet">
+                            中金公司发布研报，维持中国中免"跑赢行业"评级，目标价100元。
+                        </div>
+                        <div class="news-meta">
+                            评分: +0.58 | 中金在线 | 2025-01-13
+                        </div>
+                    </div>
+
+                    <div class="section-title">🎯 操作建议</div>
+                    <div style="color: #2563eb; font-weight: 600; margin-bottom: 12px;">观望</div>
+
+                    <div class="section-title">⚠️ 风险提示</div>
+                    <div style="color: #dc2626;">
+                        短期面临控股股东减持压力，技术面偏弱，建议观望为主。<br>
+                        如跌破83元支撑位，需注意止损风险。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 字段对比表 -->
+        <div class="report-card" style="margin-top: 20px;">
+            <h3 style="margin-bottom: 15px;">📋 字段对比表</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>字段</th>
+                        <th>精简报告</th>
+                        <th>完整报告</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>analysis_summary</strong></td>
+                        <td><span class="check-simple">✅ 显示</span></td>
+                        <td><span class="check-full">✅ 显示</span></td>
+                        <td>AI生成的核心结论（<strong>完全相同</strong>）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>trend_prediction</strong></td>
+                        <td><span class="check-simple">✅ 显示</span></td>
+                        <td>❌ 不显示</td>
+                        <td>趋势判断（震荡/看多/看空）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>operation_advice</strong></td>
+                        <td><span class="check-simple">✅ 显示</span></td>
+                        <td><span class="check-full">✅ 显示</span></td>
+                        <td>操作建议（<strong>完全相同</strong>）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>confidence_level</strong></td>
+                        <td><span class="check-simple">✅ 显示</span></td>
+                        <td>❌ 不显示</td>
+                        <td>置信度（高/中/低）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>key_points</strong></td>
+                        <td><span class="check-simple">✅ 显示</span></td>
+                        <td>❌ 不显示</td>
+                        <td>关键看点（3-5个要点）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>technical_analysis</strong></td>
+                        <td>❌ 不显示</td>
+                        <td><span class="check-full">✅ 显示</span></td>
+                        <td><strong>技术面详细分析</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>fundamental_analysis</strong></td>
+                        <td>❌ 不显示</td>
+                        <td><span class="check-full">✅ 显示</span></td>
+                        <td><strong>基本面详细分析</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>news_summary</strong></td>
+                        <td>❌ 不显示</td>
+                        <td><span class="check-full">✅ 显示</span></td>
+                        <td><strong>消息面摘要</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>news_list</strong></td>
+                        <td>❌ 不显示</td>
+                        <td><span class="check-full">✅ 显示</span></td>
+                        <td><strong>新闻详情列表（含情绪评分）</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>risk_warning</strong></td>
+                        <td>❌ 不显示</td>
+                        <td><span class="check-full">✅ 显示</span></td>
+                        <td><strong>风险提示</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="info-box" style="background: #dbeafe; border-left-color: #3b82f6;">
+            <strong>🎯 结论：</strong>两种报告的核心结论（analysis_summary）和操作建议（operation_advice）<b>完全相同</b>。完整报告只是额外提供了技术面、基本面、消息面的详细分析，以及新闻详情列表和风险提示。
+        </div>
+    </div>
+</body>
+</html>
