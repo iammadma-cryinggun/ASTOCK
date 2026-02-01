@@ -54,4 +54,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 
 # 默认命令（可被覆盖）
 # Zeabur 部署默认启动 WebUI 模式（仅 WebUI，不执行定时任务）
-CMD ["python", "main.py", "--webui-only"]
+# 使用专用启动脚本确保只运行 WebUI
+CMD ["python", "start_webui.py"]
