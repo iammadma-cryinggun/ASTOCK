@@ -109,7 +109,6 @@ class FuturesVolatilityMonitor:
             data_provider: 数据提供者（可选）
         """
         self.data_provider = data_provider
-        self._historical_iv = {}  # 存储历史IV数据
 
     def calculate_hv(
         self,
@@ -142,51 +141,6 @@ class FuturesVolatilityMonitor:
             hv = hv * np.sqrt(252)
 
         return float(hv * 100)  # 转换为百分比
-
-    def estimate_iv_from_options(self, symbol: str) -> Optional[float]:
-        """
-        从真实的波动率指数获取隐含波动率
-
-        使用真实的波动率指数（VIX、GVZ、OVX）而不是简化估算
-        这些指数本身就是市场预期的波动率，可以直接作为 IV 使用
-
-        Args:
-            symbol: 标的代码
-
-        Returns:
-            隐含波动率（百分比）
-        """
-        from src.volatility_index import get_volatility_fetcher
-
-        fetcher = get_volatility_fetcher()
-
-        # 获取真实的波动率指数
-        iv_value = fetcher.get_volatility_index(symbol)
-
-        if iv_value is not None:
-            logger.info(f"获取 {symbol} 的真实 IV 指数: {iv_value:.2f}%")
-            return iv_value
-
-        # 回退到估算方法（当指数数据不可用时）
-        logger.warning(f"无法获取 {symbol} 的波动率指数，使用估算方法")
-
-        try:
-            if self.data_provider:
-                # 获取近期数据计算 HV
-                data = self.data_provider.get_stock_history(symbol, days=60)
-                if data is not None and len(data) > 20:
-                    prices = pd.Series([d['close'] for d in data])
-                    hv = self.calculate_hv(prices, window=20)
-
-                    # 保守估算：HV + 10% 风险溢价（而不是之前的 20%）
-                    iv_estimate = hv * 1.1
-
-                    logger.warning(f"{symbol} 使用估算 IV: {iv_estimate:.2f}% (基于 HV: {hv:.2f}%)")
-                    return iv_estimate
-        except Exception as e:
-            logger.warning(f"估算 IV 失败: {symbol} - {e}")
-
-        return None
 
     def calculate_iv_percentile(
         self,
@@ -257,7 +211,7 @@ class FuturesVolatilityMonitor:
             return None
 
         try:
-            # 获取历史数据
+            # 获取历史价格数据（用于计算 HV）
             data = self.data_provider.get_stock_history(symbol, days=252)  # 一年数据
 
             if data is None or len(data) < 60:
@@ -268,7 +222,7 @@ class FuturesVolatilityMonitor:
             prices = pd.Series([d['close'] for d in data])
             current_price = float(prices.iloc[-1])
 
-            # 计算 HV
+            # 计算 HV（历史波动率）
             hv_20d = self.calculate_hv(prices, window=20)
             hv_60d = self.calculate_hv(prices, window=60)
 
@@ -281,29 +235,39 @@ class FuturesVolatilityMonitor:
 
             hv_percentile = self.calculate_iv_percentile(hv_20d, hv_list)
 
-            # 估算 IV（实际应该从期权数据获取）
-            iv_current = self.estimate_iv_from_options(symbol)
+            # 获取 IV（隐含波动率）- 使用真实的波动率指数
+            from src.volatility_index import get_volatility_fetcher
+
+            fetcher = get_volatility_fetcher()
+
+            # 设置数据提供者（用于降级方案）
+            if self.data_provider:
+                fetcher.set_data_provider(self.data_provider)
+
+            iv_current = fetcher.get_volatility_index(symbol)
 
             if iv_current is None:
                 logger.warning(f"无法获取 {symbol} 的 IV 数据")
                 return None
 
-            # 计算 IV 分位数（使用历史估算）
-            if symbol not in self._historical_iv:
-                self._historical_iv[symbol] = []
+            # 计算 IV 历史分位数 - 使用真实的历史数据（252个交易日）
+            iv_percentile = fetcher.calculate_iv_percentile(symbol)
 
-            self._historical_iv[symbol].append(iv_current)
-            # 只保留最近252个数据点
-            if len(self._historical_iv[symbol]) > 252:
-                self._historical_iv[symbol] = self._historical_iv[symbol][-252:]
+            if iv_percentile is None:
+                logger.warning(f"无法计算 {symbol} 的 IV 分位数")
+                iv_percentile = 50.0  # 默认值
 
-            iv_percentile = self.calculate_iv_percentile(iv_current, self._historical_iv[symbol])
+            # 获取历史 IV 数据用于计算 IV Rank
+            historical_iv_data = fetcher.get_historical_volatility_index(symbol, days=252)
 
-            # 计算 IV Rank（当前IV相对于历史高低点）
-            iv_min = min(self._historical_iv[symbol])
-            iv_max = max(self._historical_iv[symbol])
-            if iv_max > iv_min:
-                iv_rank = (iv_current - iv_min) / (iv_max - iv_min) * 100
+            if historical_iv_data:
+                iv_values = [d['value'] for d in historical_iv_data]
+                iv_min = min(iv_values)
+                iv_max = max(iv_values)
+                if iv_max > iv_min:
+                    iv_rank = (iv_current - iv_min) / (iv_max - iv_min) * 100
+                else:
+                    iv_rank = 50.0
             else:
                 iv_rank = 50.0
 
