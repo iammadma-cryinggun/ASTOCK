@@ -303,16 +303,22 @@ class StockAnalysisPipeline:
                                 # 失败时标记为使用通用 LLM
                                 model_used = "General LLM (fallback)"
 
-                            # 确定情绪标签
+                            # 确定情绪标签（降低阈值，使新闻更容易显示为正面或负面）
                             sentiment_label = "⚪中性"
                             sentiment_score_text = "N/A"
                             if sentiment_result:
-                                if sentiment_result.score > 0.3:
+                                # 降低阈值从 0.3 → 0.15，更敏感地捕捉情绪
+                                if sentiment_result.score > 0.15:
                                     sentiment_label = "🟢正面"
                                     sentiment_score_text = f"+{sentiment_result.score:.2f}"
-                                elif sentiment_result.score < -0.3:
+                                elif sentiment_result.score < -0.15:
                                     sentiment_label = "🔴负面"
                                     sentiment_score_text = f"{sentiment_result.score:.2f}"
+                                else:
+                                    # 在 -0.15 到 0.15 之间才显示为中性
+                                    sentiment_score_text = f"{sentiment_result.score:.2f}"
+                                    logger.debug(f"[{code}] 新闻情绪为中性: {sentiment_result.score:.3f} (阈值±0.15)")
+                                logger.info(f"[{code}] 新闻情绪分析: {sentiment_result.score:.3f} → {sentiment_label}")
 
                             news_list.append({
                                 'title': result.title,
