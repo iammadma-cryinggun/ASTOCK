@@ -270,7 +270,23 @@ def _initialize_default_models() -> None:
             available=True
         ))
 
-    # 4. Gemini（免费兜底）
+    # 4. 轩辕-70B（财务分析专用）
+    if config.xuanyuan_api_key:
+        router.register_model(ModelConfig(
+            name="xuanyuan",
+            api_key=config.xuanyuan_api_key,
+            base_url=config.xuanyuan_base_url or "https://api.xuanyuan.ai/v1",
+            model="xuanyuan-70b",
+            priority=1,  # 与千问同级，用于财务分析
+            cost_per_million=5.0,
+            free_quota=0,
+            speed="medium",
+            strengths=["financial_analysis", "earnings_deep_dive", "logic_reasoning"],
+            available=True
+        ))
+        logger.info("[ModelRouter] 已注册轩辕-70B（财务分析专用）")
+
+    # 5. Gemini（免费兜底）
     if config.gemini_api_key:
         router.register_model(ModelConfig(
             name="gemini",
@@ -285,7 +301,7 @@ def _initialize_default_models() -> None:
             available=True
         ))
 
-    # 5. Groq（超快推理）
+    # 6. Groq（超快推理）
     groq_key = os.getenv("GROQ_API_KEY")
     if groq_key:
         router.register_model(ModelConfig(

@@ -55,7 +55,15 @@ class Config:
     openai_base_url: Optional[str] = None  # 如: https://api.openai.com/v1
     openai_model: str = "gpt-4o-mini"  # OpenAI 兼容模型名称
     openai_temperature: float = 0.7  # OpenAI 温度参数（0.0-2.0，默认0.7）
-    
+
+    # === 专业金融模型配置 ===
+    # Hugging Face API（用于 FinBERT-Chinese 等模型）
+    huggingface_api_key: Optional[str] = None
+
+    # 轩辕-70B（财务分析专用大模型）
+    xuanyuan_api_key: Optional[str] = None
+    xuanyuan_base_url: Optional[str] = None  # 轩辕 API 地址
+
     # === 搜索引擎配置（支持多 Key 负载均衡）===
     bocha_api_keys: List[str] = field(default_factory=list)  # Bocha API Keys
     tavily_api_keys: List[str] = field(default_factory=list)  # Tavily API Keys
@@ -312,6 +320,11 @@ class Config:
             openai_base_url=os.getenv('OPENAI_BASE_URL'),
             openai_model=os.getenv('OPENAI_MODEL', 'gpt-4o-mini'),
             openai_temperature=float(os.getenv('OPENAI_TEMPERATURE', '0.7')),
+            # 专业金融模型
+            huggingface_api_key=os.getenv('HUGGINGFACE_API_KEY'),
+            xuanyuan_api_key=os.getenv('XUANYUAN_API_KEY'),
+            xuanyuan_base_url=os.getenv('XUANYUAN_BASE_URL'),
+            # 搜索引擎
             bocha_api_keys=bocha_api_keys,
             tavily_api_keys=tavily_api_keys,
             serpapi_keys=serpapi_keys,
