@@ -125,46 +125,145 @@ class PageHandler:
 
     def handle_futures(self) -> Response:
         """处理期货波动率监控页面 GET /futures"""
+        from src.volatility_index import get_volatility_fetcher
         from src.futures_monitor import FuturesVolatilityMonitor
 
         try:
-            # 创建监控器（不传入 data_provider，这样不会尝试获取实时数据）
-            monitor = FuturesVolatilityMonitor(data_provider=None)
+            # 获取波动率获取器（使用 CBOE 官方数据）
+            fetcher = get_volatility_fetcher()
 
             # 获取默认监控标的列表
+            monitor = FuturesVolatilityMonitor(data_provider=None)
             default_symbols = monitor.DEFAULT_SYMBOLS
 
-            # 由于没有数据提供者，返回空结果（但页面会正常显示说明）
             results = []
             extreme_dicts = []
+            data_unavailable = False
 
-            # 生成模拟数据用于演示（仅用于页面展示）
-            for symbol, name in default_symbols.items():
-                # 注意：这是模拟数据，仅用于页面结构展示
-                # 实际部署时需要配置正确的数据源
-                results.append({
-                    'symbol': symbol,
-                    'name': name,
-                    'current_price': 0.0,
-                    'iv_current': 0.0,
-                    'iv_percentile': 0.0,
-                    'hv_20d': 0.0,
-                    'iv_hv_divergence': 0.0,
-                    'risk_level': 'low',
-                    'timestamp': '暂无数据'
-                })
+            # 尝试获取第一个标的的数据来检查数据源是否可用
+            first_symbol = list(default_symbols.keys())[0]
+            test_iv = fetcher.get_volatility_index(first_symbol)
 
-            logger.info(f"[PageHandler] 期货监控页面已加载，共 {len(results)} 个标的（模拟数据）")
+            if test_iv is None:
+                # 数据源不可用（可能是 Yahoo Finance 403 错误）
+                data_unavailable = True
+                logger.warning("[PageHandler] 波动率数据源不可用（可能是网络问题）")
+            else:
+                # 获取每个标的的真实波动率数据
+                for symbol, name in default_symbols.items():
+                    try:
+                        # 获取当前 IV（隐含波动率）
+                        iv_current = fetcher.get_volatility_index(symbol)
 
-            body = render_futures_page(results, extreme_dicts)
+                        if iv_current is None:
+                            logger.warning(f"[PageHandler] 无法获取 {symbol} 的 IV 数据")
+                            continue
+
+                        # 获取历史 IV 数据用于计算分位数
+                        historical_data = fetcher.get_historical_volatility_index(symbol, days=252)
+
+                        if not historical_data:
+                            logger.warning(f"[PageHandler] 无法获取 {symbol} 的历史数据")
+                            continue
+
+                        # 计算 IV 分位数
+                        iv_percentile = fetcher.calculate_iv_percentile(symbol)
+                        if iv_percentile is None:
+                            iv_percentile = 50.0
+
+                        # 获取历史 IV 值
+                        iv_values = [d['value'] for d in historical_data]
+                        iv_min = min(iv_values)
+                        iv_max = max(iv_values)
+
+                        # 计算 IV Rank
+                        if iv_max > iv_min:
+                            iv_rank = (iv_current - iv_min) / (iv_max - iv_min) * 100
+                        else:
+                            iv_rank = 50.0
+
+                        # 获取当前价格（从历史数据的最新条目）
+                        current_price = 0.0
+                        if historical_data and len(historical_data) > 0:
+                            latest = historical_data[-1]
+                            current_price = latest.get('close', 0.0)
+
+                        # 计算 HV（历史波动率）- 简化计算
+                        import numpy as np
+                        if len(iv_values) >= 20:
+                            # 使用最近20个IV值的标准差作为HV的近似
+                            hv_20d = float(np.std(iv_values[-20:]))
+                        else:
+                            hv_20d = iv_current * 0.8  # 简化估计
+
+                        # 计算 IV-HV 背离度
+                        iv_hv_divergence = iv_current - hv_20d
+
+                        # 判断风险等级
+                        if iv_percentile >= 95 or iv_hv_divergence >= 0.30:
+                            risk_level = 'extreme'
+                        elif iv_percentile >= 90 or iv_hv_divergence >= 0.20:
+                            risk_level = 'high'
+                        elif iv_percentile >= 80 or iv_hv_divergence >= 0.15:
+                            risk_level = 'medium'
+                        else:
+                            risk_level = 'low'
+
+                        # 检查是否为极端风险
+                        if risk_level in ['high', 'extreme']:
+                            results.append({
+                                'symbol': symbol,
+                                'name': name,
+                                'current_price': current_price,
+                                'iv_current': iv_current,
+                                'iv_percentile': iv_percentile,
+                                'hv_20d': hv_20d,
+                                'iv_hv_divergence': iv_hv_divergence,
+                                'risk_level': risk_level,
+                                'timestamp': historical_data[-1].get('date', '') if historical_data else ''
+                            })
+
+                            if risk_level == 'extreme':
+                                extreme_dicts.append({
+                                    'symbol': symbol,
+                                    'name': name,
+                                    'current_price': current_price,
+                                    'iv_current': iv_current,
+                                    'iv_percentile': iv_percentile,
+                                    'hv_20d': hv_20d,
+                                    'iv_hv_divergence': iv_hv_divergence,
+                                    'risk_level': risk_level,
+                                    'timestamp': historical_data[-1].get('date', '') if historical_data else ''
+                                })
+                        else:
+                            # 正常风险也添加到结果中
+                            results.append({
+                                'symbol': symbol,
+                                'name': name,
+                                'current_price': current_price,
+                                'iv_current': iv_current,
+                                'iv_percentile': iv_percentile,
+                                'hv_20d': hv_20d,
+                                'iv_hv_divergence': iv_hv_divergence,
+                                'risk_level': risk_level,
+                                'timestamp': historical_data[-1].get('date', '') if historical_data else ''
+                            })
+
+                    except Exception as e:
+                        logger.warning(f"[PageHandler] 处理 {symbol} 失败: {e}")
+                        continue
+
+            logger.info(f"[PageHandler] 期货监控页面已加载，共 {len(results)} 个标的")
+
+            body = render_futures_page(results, extreme_dicts, data_unavailable)
             return HtmlResponse(body)
 
         except Exception as e:
             logger.error(f"[PageHandler] 获取期货监控数据失败: {e}")
             import traceback
             traceback.print_exc()
-            # 返回空页面
-            body = render_futures_page([], [])
+            # 返回空页面（标记为数据不可用）
+            body = render_futures_page([], [], True)
             return HtmlResponse(body)
 
     def handle_subscription(self) -> Response:
