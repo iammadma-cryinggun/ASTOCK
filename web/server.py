@@ -46,9 +46,8 @@ class WebRequestHandler(BaseHTTPRequestHandler):
     
     def log_message(self, fmt: str, *args) -> None:
         """自定义日志格式（使用 logging 而非 stderr）"""
-        # 可以取消注释以启用请求日志
-        # logger.debug(f"[WebServer] {self.address_string()} - {fmt % args}")
-        pass
+        # 启用请求日志以调试
+        logger.info(f"[WebServer] {self.address_string()} - {fmt % args}")
 
 
 # ============================================================
