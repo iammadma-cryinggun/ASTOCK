@@ -19,9 +19,14 @@ A股自选股智能分析系统 - 语义分析路由器
 
 import logging
 import time
+import os
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
 from enum import Enum
+
+# 设置 Hugging Face 镜像站（解决中国大陆访问问题）
+# 必须在导入 transformers 之前设置
+os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +97,10 @@ class FinBERTClient:
 
         try:
             from transformers import pipeline
+
             logger.info(f"[FinBERT] 正在加载模型: {self.model_id}")
+            logger.info(f"[FinBERT] 使用镜像站: {os.environ.get('HF_ENDPOINT', '默认')}")
+
             self._pipeline = pipeline("text-classification", model=self.model_id)
             logger.info("[FinBERT] 模型加载成功")
             return self._pipeline
