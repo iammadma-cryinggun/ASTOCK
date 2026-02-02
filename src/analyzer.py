@@ -813,20 +813,20 @@ class GeminiAnalyzer:
         Args:
             context: 从 storage.get_analysis_context() 获取的上下文数据
             news_context: 预先搜索的新闻内容（文本格式，用于 AI 分析）
-            news_list: 原始新闻列表（带情绪评分，用于前端展示）
+            news_list: 原始新闻列表（带情绪评分，用于增强 AI 分析）
 
         Returns:
             AnalysisResult 对象
         """
         code = context.get('code', 'Unknown')
         config = get_config()
-        
+
         # 请求前增加延时（防止连续请求触发限流）
         request_delay = config.gemini_request_delay
         if request_delay > 0:
             logger.debug(f"[LLM] 请求前等待 {request_delay:.1f} 秒...")
             time.sleep(request_delay)
-        
+
         # 优先从上下文获取股票名称（由 main.py 传入）
         name = context.get('stock_name')
         if not name or name.startswith('股票'):
@@ -836,7 +836,7 @@ class GeminiAnalyzer:
             else:
                 # 最后从映射表获取
                 name = STOCK_NAME_MAP.get(code, f'股票{code}')
-        
+
         # 如果模型不可用，返回默认结果
         if not self.is_available():
             return AnalysisResult(
@@ -851,10 +851,10 @@ class GeminiAnalyzer:
                 success=False,
                 error_message='Gemini API Key 未配置',
             )
-        
+
         try:
-            # 格式化输入（包含技术面数据和新闻）
-            prompt = self._format_prompt(context, name, news_context)
+            # 格式化输入（包含技术面数据和新闻，以及带情绪评分的新闻列表）
+            prompt = self._format_prompt(context, name, news_context, news_list)
             
             # 获取模型名称
             model_name = getattr(self, '_current_model_name', None)
@@ -925,20 +925,22 @@ class GeminiAnalyzer:
             )
     
     def _format_prompt(
-        self, 
-        context: Dict[str, Any], 
+        self,
+        context: Dict[str, Any],
         name: str,
-        news_context: Optional[str] = None
+        news_context: Optional[str] = None,
+        news_list: Optional[List[Dict[str, Any]]] = None
     ) -> str:
         """
         格式化分析提示词（决策仪表盘 v2.0）
-        
-        包含：技术指标、实时行情（量比/换手率）、筹码分布、趋势分析、新闻
-        
+
+        包含：技术指标、实时行情（量比/换手率）、筹码分布、趋势分析、新闻 + FinBERT 情绪评分
+
         Args:
             context: 技术面数据上下文（包含增强数据）
             name: 股票名称（默认值，可能被上下文覆盖）
-            news_context: 预先搜索的新闻内容
+            news_context: 预先搜索的新闻内容（文本格式）
+            news_list: 原始新闻列表（带 FinBERT 情绪评分，增强 AI 决策）
         """
         code = context.get('code', 'Unknown')
         
@@ -1049,13 +1051,71 @@ class GeminiAnalyzer:
 - 价格较昨日变化：{context.get('price_change_ratio', 'N/A')}%
 """
         
-        # 添加新闻搜索结果（重点区域）
+        # 添加新闻搜索结果（重点区域）+ FinBERT 情绪评分
         prompt += """
 ---
 
 ## 📰 舆情情报
 """
-        if news_context:
+
+        # 如果有带情绪评分的新闻列表，优先使用（增强版）
+        if news_list and len(news_list) > 0:
+            # 统计情绪分布
+            sentiment_stats = {'🟢正面': 0, '⚪中性': 0, '🔴负面': 0}
+            for item in news_list:
+                label = item.get('sentiment_label', '⚪中性')
+                if label in sentiment_stats:
+                    sentiment_stats[label] += 1
+
+            total_news = len(news_list)
+            prompt += f"""
+### 情绪分析概览（FinBERT 语义模型）
+| 情绪类型 | 数量 | 占比 |
+|---------|------|------|
+| 🟢正面新闻 | {sentiment_stats['🟢正面']} 条 | {sentiment_stats['🟢正面']/total_news*100:.1f}% |
+| ⚪中性新闻 | {sentiment_stats['⚪中性']} 条 | {sentiment_stats['⚪中性']/total_news*100:.1f}% |
+| 🔴负面新闻 | {sentiment_stats['🔴负面']} 条 | {sentiment_stats['🔴负面']/total_news*100:.1f}% |
+
+**⚠️ 重要决策参考**：
+- 如果正面新闻 > 60%，说明市场情绪偏多，可适当乐观
+- 如果负面新闻 > 40%，说明存在明显利空，需提高风险警惕
+- 重点关注 🔴负面新闻中的具体风险点（减持、处罚、业绩变脸等）
+
+---
+
+### 详细新闻列表（含 FinBERT 情绪评分）
+
+以下是 **{stock_name}({code})** 近期的详细新闻，每条新闻都经过 FinBERT 模型情绪分析：
+
+"""
+            # 显示每条新闻，包含情绪标签
+            for i, item in enumerate(news_list[:15], 1):  # 最多显示15条
+                sentiment_label = item.get('sentiment_label', '⚪中性')
+                sentiment_score = item.get('sentiment_score', 'N/A')
+                category = item.get('category', '')
+                title = item.get('title', '')
+                snippet = item.get('snippet', '')[:150]  # 摘要限制150字
+
+                prompt += f"""
+#### {i}. {sentiment_label} {category}
+**情绪评分**: {sentiment_score}
+
+**标题**: {title}
+
+**摘要**: {snippet}...
+
+---
+"""
+
+            prompt += f"""
+**决策提示**：
+1. 优先关注 🔴负面新闻，这些可能带来股价下跌风险
+2. 🟢正面新闻可作为买入时的催化剂参考
+3. 如果风险排查类新闻多为负面，建议观望或减仓
+
+"""
+        elif news_context:
+            # 备选方案：使用纯文本格式的新闻（无情绪评分）
             prompt += f"""
 以下是 **{stock_name}({code})** 近7日的新闻搜索结果，请重点提取：
 1. 🚨 **风险警报**：减持、处罚、利空
