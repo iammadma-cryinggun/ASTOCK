@@ -127,7 +127,7 @@ class PageHandler:
 
     def handle_futures(self) -> Response:
         """处理期货波动率监控页面 GET /futures"""
-        from src.volatility_index import get_volatility_fetcher
+        from src.volatility_index_fetcher import get_volatility_fetcher
         from src.futures_monitor import FuturesVolatilityMonitor
 
         try:
