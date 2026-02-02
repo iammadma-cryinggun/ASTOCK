@@ -270,8 +270,14 @@ class StockAnalysisPipeline:
                     logger.info(f"[{code}] 情报搜索完成: 共 {total_results} 条结果")
                     logger.debug(f"[{code}] 情报搜索结果:\n{news_context}")
 
-                    # 提取所有新闻条目并进行情绪分析
-                    semantic_router = get_semantic_router()
+                    # 提取所有新闻条目并进行情绪分析（可选功能）
+                    semantic_router = None
+                    try:
+                        semantic_router = get_semantic_router()
+                    except Exception as e:
+                        # FinBERT 不可用时不影响核心分析流程
+                        logger.debug(f"[{code}] 语义分析模块不可用，将跳过新闻情绪评分: {e}")
+
                     for dim_name, response in intel_results.items():
                         if not response.success:
                             continue
@@ -287,21 +293,24 @@ class StockAnalysisPipeline:
                         category = dim_desc_map.get(dim_name, dim_name)
 
                         for result in response.results[:4]:  # 每个维度最多4条
-                            # 使用 semantic_router 进行情绪分析
+                            # 使用 semantic_router 进行情绪分析（如果可用）
                             sentiment_result = None
                             model_used = "Unknown"
-                            try:
-                                sentiment_result = semantic_router.analyze(
-                                    task_type=TaskType.NEWS_SENTIMENT,
-                                    content=f"{result.title}. {result.snippet}"
-                                )
-                                if sentiment_result:
-                                    model_used = sentiment_result.model_used
-                                    logger.debug(f"[{code}] 新闻情绪分析成功: {sentiment_result.label} ({sentiment_result.score:.2f}), 模型: {model_used}")
-                            except Exception as e:
-                                logger.warning(f"[{code}] 新闻情绪分析失败 ({result.title[:30]}...): {e}，使用中性标签")
-                                # 失败时标记为使用通用 LLM
-                                model_used = "General LLM (fallback)"
+                            if semantic_router:
+                                try:
+                                    sentiment_result = semantic_router.analyze(
+                                        task_type=TaskType.NEWS_SENTIMENT,
+                                        content=f"{result.title}. {result.snippet}"
+                                    )
+                                    if sentiment_result:
+                                        model_used = sentiment_result.model_used
+                                        logger.debug(f"[{code}] 新闻情绪分析成功: {sentiment_result.label} ({sentiment_result.score:.2f}), 模型: {model_used}")
+                                except Exception as e:
+                                    logger.debug(f"[{code}] 单条新闻情绪分析失败: {e}")
+                                    # 失败时继续，不影响其他新闻
+                            else:
+                                # 语义分析不可用时，所有新闻标记为中性
+                                model_used = "N/A (semantic analysis disabled)"
 
                             # 确定情绪标签（降低阈值，使新闻更容易显示为正面或负面）
                             sentiment_label = "⚪中性"
