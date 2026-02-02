@@ -154,35 +154,19 @@ trendReversalSell = bullishArrangement[1] and bearishArrangement and kdjOverboug
 if showSniperPoints
     // 理想买点
     if idealBuyCondition
-        label.new(bar_index, low, "★理想买点\n" + str.tostring(close, "#.##"),
-                  color=color.new(color.green, 0),
-                  textcolor=color.white,
-                  style=label.style_label_up,
-                  size=size.large)
+        label.new(bar_index, low, "★理想买点\n" + str.tostring(close, "#.##"), color=color.new(color.green, 0), textcolor=color.white, style=label.style_label_up, size=size.large)
 
     // 理想卖点
     if idealSellCondition
-        label.new(bar_index, high, "☆理想卖点\n" + str.tostring(close, "#.##"),
-                  color=color.new(color.red, 0),
-                  textcolor=color.white,
-                  style=label.style_label_down,
-                  size=size.large)
+        label.new(bar_index, high, "☆理想卖点\n" + str.tostring(close, "#.##"), color=color.new(color.red, 0), textcolor=color.white, style=label.style_label_down, size=size.large)
 
     // 趋势反转买点
     if trendReversalBuy
-        label.new(bar_index, low, "🔄反转买点\n" + str.tostring(close, "#.##"),
-                  color=color.new(color.blue, 0),
-                  textcolor=color.white,
-                  style=label.style_label_up,
-                  size=size.normal)
+        label.new(bar_index, low, "🔄反转买点\n" + str.tostring(close, "#.##"), color=color.new(color.blue, 0), textcolor=color.white, style=label.style_label_up, size=size.normal)
 
     // 趋势反转卖点
     if trendReversalSell
-        label.new(bar_index, high, "🔄反转卖点\n" + str.tostring(close, "#.##"),
-                  color=color.new(color.orange, 0),
-                  textcolor=color.white,
-                  style=label.style_label_down,
-                  size=size.normal)
+        label.new(bar_index, high, "🔄反转卖点\n" + str.tostring(close, "#.##"), color=color.new(color.orange, 0), textcolor=color.white, style=label.style_label_down, size=size.normal)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 📋 操作检查清单（可视化面板）
@@ -190,81 +174,48 @@ if showSniperPoints
 
 if showChecklist and barstate.islast
     // 创建检查清单表格
-    var table checklistTable = table.new(position.top_right, 2, 10,
-                                         bgcolor=color.new(color.white, 5),
-                                         border_width=1,
-                                         border_color=color.gray)
+    var table checklistTable = table.new(position.top_right, 2, 10, bgcolor=color.new(color.white, 5), border_width=1, border_color=color.gray)
 
     // 标题
-    table.cell(checklistTable, 0, 0, "操作检查清单",
-               bgcolor=color.new(color.blue, 20),
-               text_color=color.white,
-               text_size=size.normal,
-               width=200)
+    table.cell(checklistTable, 0, 0, "操作检查清单", bgcolor=color.new(color.blue, 20), text_color=color.white, text_size=size.normal, width=200)
 
     // 填充检查清单
     // 1. 多头排列
-    table.cell(checklistTable, 0, 1, "多头排列",
-               text_color=color.black, text_size=size.small)
-    table.cell(checklistTable, 1, 1,
-               bullishArrangement ? "✅ 是" : "❌ 否",
-               text_color=bullishArrangement ? color.green : color.red,
-               text_size=size.small)
+    table.cell(checklistTable, 0, 1, "多头排列", text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 1, 1, bullishArrangement ? "✅ 是" : "❌ 否", text_color=bullishArrangement ? color.green : color.red, text_size=size.small)
 
     // 2. MACD 多头
-    table.cell(checklistTable, 0, 2, "MACD 多头",
-               text_color=color.black, text_size=size.small)
-    table.cell(checklistTable, 1, 2,
-               macdBullish ? "✅ 是" : "❌ 否",
-               text_color=macdBullish ? color.green : color.red,
-               text_size=size.small)
+    table.cell(checklistTable, 0, 2, "MACD 多头", text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 1, 2, macdBullish ? "✅ 是" : "❌ 否", text_color=macdBullish ? color.green : color.red, text_size=size.small)
 
     // 3. KDJ 多头
-    table.cell(checklistTable, 0, 3, "KDJ 多头",
-               text_color=color.black, text_size=size.small)
-    table.cell(checklistTable, 1, 3,
-               kdjBullish ? "✅ 是" : "❌ 否",
-               text_color=kdjBullish ? color.green : color.red,
-               text_size=size.small)
+    table.cell(checklistTable, 0, 3, "KDJ 多头", text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 1, 3, kdjBullish ? "✅ 是" : "❌ 否", text_color=kdjBullish ? color.green : color.red, text_size=size.small)
 
     // 4. 双共振
-    table.cell(checklistTable, 0, 4, "MACD+KDJ 双共振",
-               text_color=color.black, text_size=size.small)
-    table.cell(checklistTable, 1, 4,
-               doubleBullish ? "✅ 是" : "❌ 否",
-               text_color=doubleBullish ? color.green : color.red,
-               text_size=size.small)
+    table.cell(checklistTable, 0, 4, "MACD+KDJ 双共振", text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 1, 4, doubleBullish ? "✅ 是" : "❌ 否", text_color=doubleBullish ? color.green : color.red, text_size=size.small)
 
     // 5. 乖离率
-    table.cell(checklistTable, 0, 5, "乖离率",
-               text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 0, 5, "乖离率", text_color=color.black, text_size=size.small)
     biasText = str.tostring(bias, "#.##") + "%"
     biasColor = bias > idealSellDeviation ? color.red : bias < -idealBuyDeviation ? color.green : color.yellow
-    table.cell(checklistTable, 1, 5, biasText,
-               text_color=biasColor,
-               text_size=size.small)
+    table.cell(checklistTable, 1, 5, biasText, text_color=biasColor, text_size=size.small)
 
     // 6. 布林带位置
     bbPosition = (close - bbLower) / (bbUpper - bbLower) * 100
-    table.cell(checklistTable, 0, 6, "布林带位置",
-               text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 0, 6, "布林带位置", text_color=color.black, text_size=size.small)
     bbColor = bbPosition > 80 ? color.red : bbPosition < 20 ? color.green : color.yellow
-    table.cell(checklistTable, 1, 6,
-               str.tostring(bbPosition, "#.#") + "%",
-               text_color=bbColor,
-               text_size=size.small)
+    table.cell(checklistTable, 1, 6, str.tostring(bbPosition, "#.#") + "%", text_color=bbColor, text_size=size.small)
 
     // 7. 当前趋势
-    table.cell(checklistTable, 0, 7, "当前趋势",
-               text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 0, 7, "当前趋势", text_color=color.black, text_size=size.small)
     trendText = bullishArrangement ? "📈 多头" : bearishArrangement ? "📉 空头" : "➡️ 震荡"
     trendColor = bullishArrangement ? color.green : bearishArrangement ? color.red : color.gray
-    table.cell(checklistTable, 1, 7, trendText,
-               text_color=trendColor, text_size=size.small)
+    table.cell(checklistTable, 1, 7, trendText, text_color=trendColor, text_size=size.small)
 
     // 8. 操作建议
-    table.cell(checklistTable, 0, 8, "操作建议",
-               text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 0, 8, "操作建议", text_color=color.black, text_size=size.small)
     adviceText = idealBuyCondition ? "🟢 买入" : idealSellCondition ? "🔴 卖出" : bullishArrangement ? "🟡 持有" : "⚪️ 观望"
     table.cell(checklistTable, 1, 8, adviceText, text_size=size.small)
 
@@ -279,12 +230,10 @@ if showChecklist and barstate.islast
     if doubleBullish
         signalStrength += 2
 
-    table.cell(checklistTable, 0, 9, "信号强度",
-               text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 0, 9, "信号强度", text_color=color.black, text_size=size.small)
     strengthText = str.tostring(signalStrength) + "/5"
     strengthColor = signalStrength >= 4 ? color.green : signalStrength >= 3 ? color.yellow : signalStrength >= 2 ? color.orange : color.red
-    table.cell(checklistTable, 1, 9, strengthText,
-               text_color=strengthColor, text_size=size.small)
+    table.cell(checklistTable, 1, 9, strengthText, text_color=strengthColor, text_size=size.small)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ⚠️ 风险警报
@@ -340,52 +289,27 @@ if showTrendLines
     // 绘制趋势线
     if not na(highLevel) and not na(lowLevel)
         if highBar > lowBar
-            line.new(lowBar, lowLevel, highBar, highLevel,
-                    color=color.new(color.blue, 0),
-                    width=2,
-                    style=line.style_solid,
-                    extend=extend.right)
+            line.new(lowBar, lowLevel, highBar, highLevel, color=color.new(color.blue, 0), width=2, style=line.style_solid, extend=extend.right)
         else
-            line.new(highBar, highLevel, lowBar, lowLevel,
-                    color=color.new(color.red, 0),
-                    width=2,
-                    style=line.style_solid,
-                    extend=extend.right)
+            line.new(highBar, highLevel, lowBar, lowLevel, color=color.new(color.red, 0), width=2, style=line.style_solid, extend=extend.right)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 📝 信息提示
 // ═══════════════════════════════════════════════════════════════════════════
 
 // 底部信息栏
-var table infoTable = table.new(position.bottom_right, 2, 3,
-                                bgcolor=color.new(color.white, 5),
-                                border_width=1,
-                                border_color=color.gray)
+var table infoTable = table.new(position.bottom_right, 2, 3, bgcolor=color.new(color.white, 5), border_width=1, border_color=color.gray)
 
 if barstate.islast
-    table.cell(infoTable, 0, 0, "股票代码",
-               bgcolor=color.new(color.blue, 20),
-               text_color=color.white,
-               text_size=size.small)
-    table.cell(infoTable, 1, 0, syminfo.ticker,
-               text_size=size.small)
+    table.cell(infoTable, 0, 0, "股票代码", bgcolor=color.new(color.blue, 20), text_color=color.white, text_size=size.small)
+    table.cell(infoTable, 1, 0, syminfo.ticker, text_size=size.small)
 
-    table.cell(infoTable, 0, 1, "当前价格",
-               text_color=color.black,
-               text_size=size.small)
-    table.cell(infoTable, 1, 1, str.tostring(close, "#.##"),
-               text_color=color.black,
-               text_size=size.small)
+    table.cell(infoTable, 0, 1, "当前价格", text_color=color.black, text_size=size.small)
+    table.cell(infoTable, 1, 1, str.tostring(close, "#.##"), text_color=color.black, text_size=size.small)
 
-    table.cell(infoTable, 0, 2, "信号状态",
-               text_color=color.black,
-               text_size=size.small)
-    signalText = signal == "IDEAL_BUY" ? "🟢 理想买点" :
-                 signal == "IDEAL_SELL" ? "🔴 理想卖点" :
-                 signal == "REVERSAL_BUY" ? "🔄 反转买点" :
-                 signal == "REVERSAL_SELL" ? "🔄 反转卖点" : "⚪ 无信号"
-    table.cell(infoTable, 1, 2, signalText,
-               text_size=size.small)
+    table.cell(infoTable, 0, 2, "信号状态", text_color=color.black, text_size=size.small)
+    signalText = signal == "IDEAL_BUY" ? "🟢 理想买点" : signal == "IDEAL_SELL" ? "🔴 理想卖点" : signal == "REVERSAL_BUY" ? "🔄 反转买点" : signal == "REVERSAL_SELL" ? "🔄 反转卖点" : "⚪ 无信号"
+    table.cell(infoTable, 1, 2, signalText, text_size=size.small)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 🚀 Alert 提示消息
