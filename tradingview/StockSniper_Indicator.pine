@@ -328,14 +328,12 @@ if showTrendLines
     var int lowBar = na
 
     // 检测新的高点
-    if high == ta.highest(high, zigZagLookback)
-        and high > ta.highest(high[1], zigZagLookback) * (1 + zigZagDeviation / 100)
+    if high == ta.highest(high, zigZagLookback) and high > ta.highest(high[1], zigZagLookback) * (1 + zigZagDeviation / 100)
         highLevel := high
         highBar := bar_index
 
     // 检测新的低点
-    if low == ta.lowest(low, zigZagLookback)
-        and low < ta.lowest(low[1], zigZagLookback) * (1 - zigZagDeviation / 100)
+    if low == ta.lowest(low, zigZagLookback) and low < ta.lowest(low[1], zigZagLookback) * (1 - zigZagDeviation / 100)
         lowLevel := low
         lowBar := bar_index
 
