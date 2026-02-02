@@ -239,18 +239,11 @@ if showChecklist and barstate.islast
 // ⚠️ 风险警报
 // ═══════════════════════════════════════════════════════════════════════════
 
-if showRiskAlert
-    // 极端乖离率警报
-    extremeBias = bias > 8 or bias < -8
-
-    if extremeBias
-        bgcolor(color.new(color.red, 90))
-
-    // 布林带突破警报
-    bbBreakout = close > bbUpper or close < bbLower
-
-    if bbBreakout
-        bgcolor(color.new(color.orange, 90))
+// 风险警报背景色（全局作用域）
+extremeBias = bias > 8 or bias < -8
+bbBreakout = close > bbUpper or close < bbLower
+riskBgColor = showRiskAlert and extremeBias ? color.new(color.red, 90) : showRiskAlert and bbBreakout ? color.new(color.orange, 90) : na
+bgcolor(riskBgColor)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 📡 信号输出（用于 Alert 集成后端）
