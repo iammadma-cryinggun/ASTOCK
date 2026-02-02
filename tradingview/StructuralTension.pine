@@ -126,14 +126,12 @@ bgcolor(extremeOverbought ? colorOverbought : extremeOversold ? colorOversold : 
 // 柱状图（可选）
 plot(showHistogram and showTension ? tension : na, "张力柱", style=plot.style_columns, color=tension > 0 ? color.red : color.green)
 
-// 信号标注
+// 信号标注（plotshape 必须在全局作用域，使用条件表达式控制显示）
+plotshape(showSignals and buySignal, "买入", shape.triangleup, location.bottom, colorBuy, size=size.small, text="买入")
+plotshape(showSignals and sellSignal, "卖出", shape.triangledown, location.top, colorSell, size=size.small, text="卖出")
+
+// 极端信号标注（label.new 可以在局部作用域）
 if showSignals
-    // 普通买入
-    plotshape(buySignal, "买入", shape.triangleup, location.bottom, colorBuy, size=size.small, text="买入")
-
-    // 普通卖出
-    plotshape(sellSignal, "卖出", shape.triangledown, location.top, colorSell, size=size.small, text="卖出")
-
     // 极端买入
     if extremeBuy
         label.new(bar_index, 0, "★极端买入", color=color.new(color.green, 0), textcolor=color.white, style=label.style_label_up, size=size.large)
