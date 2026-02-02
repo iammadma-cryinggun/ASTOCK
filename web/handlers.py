@@ -128,132 +128,164 @@ class PageHandler:
     def handle_futures(self) -> Response:
         """处理期货波动率监控页面 GET /futures"""
         from src.volatility_index_fetcher import get_volatility_fetcher
-        from src.futures_monitor import FuturesVolatilityMonitor
+        from src.china_futures_fetcher import get_china_futures_fetcher
 
         try:
-            # 获取波动率获取器（使用 CBOE 官方数据）
-            fetcher = get_volatility_fetcher()
-
-            # 获取默认监控标的列表
-            monitor = FuturesVolatilityMonitor(data_provider=None)
-            default_symbols = monitor.DEFAULT_SYMBOLS
-
             results = []
             extreme_dicts = []
             data_unavailable = False
 
-            # 尝试获取第一个标的的数据来检查数据源是否可用
-            first_symbol = list(default_symbols.keys())[0]
-            test_iv = fetcher.get_volatility_index(first_symbol)
+            # === 策略1: 尝试使用海外数据（Yahoo Finance）===
+            try:
+                fetcher = get_volatility_fetcher()
+                test_symbol = 'GLD'
+                test_iv = fetcher.get_volatility_index(test_symbol)
 
-            if test_iv is None:
-                # 数据源不可用（可能是 Yahoo Finance 403 错误）
-                data_unavailable = True
-                logger.warning("[PageHandler] 波动率数据源不可用（可能是网络问题）")
-            else:
-                # 获取每个标的的真实波动率数据
-                for symbol, name in default_symbols.items():
+                if test_iv is not None:
+                    logger.info("[PageHandler] 使用海外数据源 (Yahoo Finance)")
+                    # 使用海外期货ETF数据（GLD, SLV, USO等）
+                    overseas_symbols = {
+                        'GLD': '黄金SPDR',
+                        'SLV': '白银iShares',
+                        'USO': '原油',
+                        'UNG': '天然气',
+                        'QQQ': '纳斯达克100',
+                    }
+
+                    for symbol, name in overseas_symbols.items():
+                        try:
+                            iv_current = fetcher.get_volatility_index(symbol)
+                            if iv_current is None:
+                                continue
+
+                            historical_data = fetcher.get_historical_volatility_index(symbol, days=252)
+                            if not historical_data:
+                                continue
+
+                            iv_percentile = fetcher.calculate_iv_percentile(symbol) or 50.0
+                            iv_values = [d['value'] for d in historical_data]
+                            iv_min = min(iv_values)
+                            iv_max = max(iv_values)
+
+                            if iv_max > iv_min:
+                                iv_rank = (iv_current - iv_min) / (iv_max - iv_min) * 100
+                            else:
+                                iv_rank = 50.0
+
+                            current_price = 0.0
+                            if historical_data and len(historical_data) > 0:
+                                current_price = historical_data[-1].get('close', 0.0)
+
+                            import numpy as np
+                            hv_20d = float(np.std(iv_values[-20:])) if len(iv_values) >= 20 else iv_current * 0.8
+                            iv_hv_divergence = iv_current - hv_20d
+
+                            if iv_percentile >= 95 or iv_hv_divergence >= 0.30:
+                                risk_level = 'extreme'
+                            elif iv_percentile >= 90 or iv_hv_divergence >= 0.20:
+                                risk_level = 'high'
+                            elif iv_percentile >= 80 or iv_hv_divergence >= 0.15:
+                                risk_level = 'medium'
+                            else:
+                                risk_level = 'low'
+
+                            result = {
+                                'symbol': symbol,
+                                'name': name,
+                                'current_price': current_price,
+                                'iv_current': iv_current,
+                                'iv_percentile': iv_percentile,
+                                'hv_20d': hv_20d,
+                                'iv_hv_divergence': iv_hv_divergence,
+                                'risk_level': risk_level,
+                                'timestamp': historical_data[-1].get('date', '') if historical_data else ''
+                            }
+
+                            results.append(result)
+
+                            if risk_level in ['high', 'extreme']:
+                                extreme_dicts.append(result.copy())
+
+                        except Exception as e:
+                            logger.warning(f"[PageHandler] 处理 {symbol} 失败: {e}")
+                            continue
+
+                    if results:
+                        logger.info(f"[PageHandler] 海外数据获取成功，共 {len(results)} 个标的")
+                    else:
+                        raise Exception("海外数据全部获取失败")
+
+            except Exception as e:
+                logger.warning(f"[PageHandler] 海外数据源不可用: {e}，降级到国内数据源")
+
+                # === 策略2: 降级到国内期货数据 ====
+                logger.info("[PageHandler] 使用国内商品期货数据源")
+                china_fetcher = get_china_futures_fetcher()
+
+                # 国内主力期货品种
+                china_symbols = ['SC', 'AU', 'AG', 'CU', 'I', 'RB', 'M', 'MA']
+
+                for code in china_symbols:
                     try:
-                        # 获取当前 IV（隐含波动率）
-                        iv_current = fetcher.get_volatility_index(symbol)
-
-                        if iv_current is None:
-                            logger.warning(f"[PageHandler] 无法获取 {symbol} 的 IV 数据")
+                        info = china_fetcher.get_futures_info(code)
+                        if not info:
                             continue
 
-                        # 获取历史 IV 数据用于计算分位数
-                        historical_data = fetcher.get_historical_volatility_index(symbol, days=252)
+                        price = china_fetcher.get_current_price(code)
+                        hv = china_fetcher.calculate_historical_volatility(code, window=20)
+                        iv = china_fetcher.estimate_implied_volatility(code)
 
-                        if not historical_data:
-                            logger.warning(f"[PageHandler] 无法获取 {symbol} 的历史数据")
+                        if hv is None or iv is None:
                             continue
 
-                        # 计算 IV 分位数
-                        iv_percentile = fetcher.calculate_iv_percentile(symbol)
-                        if iv_percentile is None:
-                            iv_percentile = 50.0
+                        iv_hv_divergence = iv - hv
 
-                        # 获取历史 IV 值
-                        iv_values = [d['value'] for d in historical_data]
-                        iv_min = min(iv_values)
-                        iv_max = max(iv_values)
-
-                        # 计算 IV Rank
-                        if iv_max > iv_min:
-                            iv_rank = (iv_current - iv_min) / (iv_max - iv_min) * 100
-                        else:
-                            iv_rank = 50.0
-
-                        # 获取当前价格（从历史数据的最新条目）
-                        current_price = 0.0
-                        if historical_data and len(historical_data) > 0:
-                            latest = historical_data[-1]
-                            current_price = latest.get('close', 0.0)
-
-                        # 计算 HV（历史波动率）- 简化计算
-                        import numpy as np
-                        if len(iv_values) >= 20:
-                            # 使用最近20个IV值的标准差作为HV的近似
-                            hv_20d = float(np.std(iv_values[-20:]))
-                        else:
-                            hv_20d = iv_current * 0.8  # 简化估计
-
-                        # 计算 IV-HV 背离度
-                        iv_hv_divergence = iv_current - hv_20d
-
-                        # 判断风险等级
-                        if iv_percentile >= 95 or iv_hv_divergence >= 0.30:
+                        # 风险等级判断（基于国内期货特点调整阈值）
+                        if iv >= 80 or iv_hv_divergence >= 20:
                             risk_level = 'extreme'
-                        elif iv_percentile >= 90 or iv_hv_divergence >= 0.20:
+                        elif iv >= 60 or iv_hv_divergence >= 15:
                             risk_level = 'high'
-                        elif iv_percentile >= 80 or iv_hv_divergence >= 0.15:
+                        elif iv >= 40 or iv_hv_divergence >= 10:
                             risk_level = 'medium'
                         else:
                             risk_level = 'low'
 
-                        # 检查是否为极端风险
-                        if risk_level in ['high', 'extreme']:
-                            results.append({
-                                'symbol': symbol,
-                                'name': name,
-                                'current_price': current_price,
-                                'iv_current': iv_current,
-                                'iv_percentile': iv_percentile,
-                                'hv_20d': hv_20d,
-                                'iv_hv_divergence': iv_hv_divergence,
-                                'risk_level': risk_level,
-                                'timestamp': historical_data[-1].get('date', '') if historical_data else ''
-                            })
-
-                            if risk_level == 'extreme':
-                                extreme_dicts.append({
-                                    'symbol': symbol,
-                                    'name': name,
-                                    'current_price': current_price,
-                                    'iv_current': iv_current,
-                                    'iv_percentile': iv_percentile,
-                                    'hv_20d': hv_20d,
-                                    'iv_hv_divergence': iv_hv_divergence,
-                                    'risk_level': risk_level,
-                                    'timestamp': historical_data[-1].get('date', '') if historical_data else ''
-                                })
+                        # IV 分位数（简化估算）
+                        if iv >= 70:
+                            iv_percentile = 90
+                        elif iv >= 50:
+                            iv_percentile = 75
+                        elif iv >= 30:
+                            iv_percentile = 50
                         else:
-                            # 正常风险也添加到结果中
-                            results.append({
-                                'symbol': symbol,
-                                'name': name,
-                                'current_price': current_price,
-                                'iv_current': iv_current,
-                                'iv_percentile': iv_percentile,
-                                'hv_20d': hv_20d,
-                                'iv_hv_divergence': iv_hv_divergence,
-                                'risk_level': risk_level,
-                                'timestamp': historical_data[-1].get('date', '') if historical_data else ''
-                            })
+                            iv_percentile = 25
+
+                        result = {
+                            'symbol': f"{code}(CN)",
+                            'name': f"{info['name']}({info['exchange']})",
+                            'current_price': price if price else 0,
+                            'iv_current': iv,
+                            'iv_percentile': iv_percentile,
+                            'hv_20d': hv,
+                            'iv_hv_divergence': iv_hv_divergence,
+                            'risk_level': risk_level,
+                            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M')
+                        }
+
+                        results.append(result)
+
+                        if risk_level in ['high', 'extreme']:
+                            extreme_dicts.append(result.copy())
+
+                        logger.info(f"[PageHandler] {code} - {info['name']}: IV={iv:.2f}%, 风险={risk_level}")
 
                     except Exception as e:
-                        logger.warning(f"[PageHandler] 处理 {symbol} 失败: {e}")
+                        logger.warning(f"[PageHandler] 处理 {code} 失败: {e}")
                         continue
+
+                if not results:
+                    data_unavailable = True
+                    logger.error("[PageHandler] 所有数据源均不可用")
 
             logger.info(f"[PageHandler] 期货监控页面已加载，共 {len(results)} 个标的")
 
