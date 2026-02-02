@@ -826,6 +826,109 @@ class ApiHandler:
                 status=HTTPStatus.INTERNAL_SERVER_ERROR
             )
 
+    def handle_tradingview_analysis(self, query: Dict[str, list]) -> Response:
+        """
+        TradingView 集成 - 股票分析 API
+        GET /api/analysis?code=AAPL&signal=IDEAL_BUY&price=150.25
+
+        供 TradingView Alert Webhook 调用，返回完整的 AI 分析报告
+
+        Args:
+            query: URL 查询参数
+                - code: 股票代码（必需）
+                - signal: 信号类型（可选）IDEAL_BUY, IDEAL_SELL, REVERSAL_BUY, REVERSAL_SELL
+                - price: 当前价格（可选）
+
+        Returns:
+            {
+                "success": true,
+                "code": "AAPL",
+                "signal": "IDEAL_BUY",
+                "analysis": {
+                    "trend_analysis": "...",
+                    "sniper_point": "...",
+                    "checklist": {...},
+                    "recommendation": "..."
+                },
+                "news_sentiment": {
+                    "positive": 3,
+                    "negative": 1,
+                    "neutral": 2
+                }
+            }
+        """
+        from src.core.pipeline import StockAnalysisPipeline
+        from src.config import get_config
+
+        try:
+            # 获取参数
+            code_list = query.get("code", [])
+            if not code_list or not code_list[0].strip():
+                return JsonResponse(
+                    {"success": False, "error": "缺少必填参数: code (股票代码)"},
+                    status=HTTPStatus.BAD_REQUEST
+                )
+
+            code = code_list[0].strip().upper()
+            signal = query.get("signal", ["NONE"])[0]
+            price = query.get("price", [None])[0]
+
+            logger.info(f"[ApiHandler] TradingView 分析请求: {code}, 信号={signal}, 价格={price}")
+
+            # 执行完整分析
+            config = get_config()
+            pipeline = StockAnalysisPipeline(config)
+
+            # 分析股票
+            result = pipeline.analyze_stock(code)
+
+            if not result:
+                return JsonResponse(
+                    {"success": False, "error": f"分析失败: {code}"},
+                    status=HTTPStatus.INTERNAL_SERVER_ERROR
+                )
+
+            # 构建 TradingView 专用响应
+            response_data = {
+                "success": True,
+                "code": code,
+                "signal": signal,
+                "current_price": price,
+                "analysis": {
+                    "trend_analysis": result.trend_analysis,
+                    "sniper_point": result.sniper_point,
+                    "operation_advice": result.operation_advice,
+                    "checklist": {
+                        "bullish_arrangement": result.trend_signal == "BULLISH",
+                        "macd_bullish": "MACD多头" in result.trend_analysis,
+                        "kdj_bullish": "KDJ" in result.trend_analysis,
+                        "bias_rate": f"{result.bias_rate:.2f}%" if hasattr(result, 'bias_rate') else "N/A"
+                    },
+                    "recommendation": result.operation_advice,
+                    "confidence": result.confidence if hasattr(result, 'confidence') else "N/A"
+                },
+                "news_sentiment": {
+                    "positive": result.news_positive_count if hasattr(result, 'news_positive_count') else 0,
+                    "negative": result.news_negative_count if hasattr(result, 'news_negative_count') else 0,
+                    "neutral": result.news_neutral_count if hasattr(result, 'news_neutral_count') else 0,
+                    "latest_news": result.news_summary[:200] if hasattr(result, 'news_summary') and result.news_summary else "无"
+                } if hasattr(result, 'news_positive_count') else None,
+                "risk_alerts": result.risk_alerts if hasattr(result, 'risk_alerts') else [],
+                "timestamp": result.analysis_time.strftime('%Y-%m-%d %H:%M:%S') if result.analysis_time else None
+            }
+
+            logger.info(f"[ApiHandler] 分析完成: {code}, 建议={response_data['analysis']['recommendation']}")
+            return JsonResponse(response_data)
+
+        except Exception as e:
+            logger.error(f"[ApiHandler] TradingView 分析失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse(
+                {"success": False, "error": str(e)},
+                status=HTTPStatus.INTERNAL_SERVER_ERROR
+            )
+
 
 # ============================================================
 # Bot Webhook 处理器

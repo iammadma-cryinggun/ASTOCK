@@ -1,0 +1,416 @@
+//@version=5
+indicator("股票狙击手 - 完整技术分析", overlay=true, max_boxes_count=500, max_lines_count=500)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📊 股票狙击手 - TradingView 完整技术指标
+//
+// 功能：
+// 1. 自动趋势线通道（基于 ZigZag 极值点）
+// 2. 多空排列判断（MA5/10/20/60）
+// 3. MACD + KDJ 双共振
+// 4. 狙击点位标注（理想买点/卖点）
+// 5. 操作检查清单（可视化面板）
+// 6. 极端风险警报
+// 7. 后端 API 集成（可选）
+//
+// 使用说明：
+// - 将此代码复制到 TradingView Pine Editor
+// - 点击"添加到图表"
+// - 理想买点会用★标注，理想卖点用☆标注
+//
+// 后端集成（可选）：
+// - 在图表右键点击 -> 添加提醒
+// - 条件：狙击点位信号
+// - Webhook URL: https://your-server.com/api/analysis
+// - 消息: {"code": "{{ticker}}", "signal": "{{plot_0}}", "price": {{close}}}
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔧 参数设置
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 趋势线参数
+zigZagDeviation = input.int(5, "ZigZag 偏离%", minval=1, maxval=20, group="趋势线")
+zigZagLookback = input.int(20, "ZigZag 回看周期", minval=5, maxval=50, group="趋势线")
+
+// 均线参数
+maFast = input.int(5, "快速均线", minval=1, group="均线系统")
+maMid = input.int(10, "中线均线", minval=1, group="均线系统")
+maSlow = input.int(20, "慢速均线", minval=1, group="均线系统")
+maVerySlow = input.int(60, "超慢均线", minval=1, group="均线系统")
+
+// MACD 参数
+macdFast = input.int(12, "MACD 快线", minval=1, group="MACD")
+macdSlow = input.int(26, "MACD 慢线", minval=1, group="MACD")
+macdSignal = input.int(9, "MACD 信号线", minval=1, group="MACD")
+
+// KDJ 参数
+kdjPeriod = input.int(14, "KDJ 周期", minval=1, group="KDJ")
+
+// 狙击点位参数
+idealBuyDeviation = input.float(2.0, "理想买点乖离率%", minval=0.5, maxval=5.0, step=0.1, group="狙击点位")
+idealSellDeviation = input.float(5.0, "理想卖点乖离率%", minval=2.0, maxval=10.0, step=0.1, group="狙击点位")
+
+// 颜色设置
+colorBullish = input.color(color.new(color.green, 0), "多头颜色", group="颜色设置")
+colorBearish = input.color(color.new(color.red, 0), "空头颜色", group="颜色设置")
+colorNeutral = input.color(color.new(color.gray, 0), "中性颜色", group="颜色设置")
+
+// 开启/关闭功能
+showTrendLines = input.bool(true, "显示趋势线", group="显示选项")
+showSniperPoints = input.bool(true, "显示狙击点位", group="显示选项")
+showChecklist = input.bool(true, "显示检查清单", group="显示选项")
+showRiskAlert = input.bool(true, "显示风险警报", group="显示选项")
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📈 技术指标计算
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────
+// 1. 均线系统
+// ─────────────────────────────────────────────────────────────────────────
+ma5 = ta.sma(close, maFast)
+ma10 = ta.sma(close, maMid)
+ma20 = ta.sma(close, maSlow)
+ma60 = ta.sma(close, maVerySlow)
+
+// 绘制均线
+plot(ma5, "MA5", color=color.yellow, linewidth=1)
+plot(ma10, "MA10", color=color.orange, linewidth=1)
+plot(ma20, "MA20", color=color.blue, linewidth=2)
+plot(ma60, "MA60", color=color.purple, linewidth=2)
+
+// 多空排列判断
+bullishArrangement = ma5 > ma10 and ma10 > ma20 and ma20 > ma60
+bearishArrangement = ma5 < ma10 and ma10 < ma20 and ma20 < ma60
+
+// ─────────────────────────────────────────────────────────────────────────
+// 2. MACD 指标
+// ─────────────────────────────────────────────────────────────────────────
+[macdLine, signalLine, histLine] = ta.macd(close, macdFast, macdSlow, macdSignal)
+macdBullish = macdLine > signalLine
+macdGoldenCross = ta.crossover(macdLine, signalLine)
+macdDeathCross = ta.crossunder(macdLine, signalLine)
+
+// MACD 多头强度
+macdStrength = (macdLine - signalLine) / ta.atr(14) * 100
+
+// ─────────────────────────────────────────────────────────────────────────
+// 3. KDJ 指标
+// ─────────────────────────────────────────────────────────────────────────
+// KDJ 计算（未成熟随机值 RSV）
+lowestLow = ta.lowest(low, kdjPeriod)
+highestHigh = ta.highest(high, kdjPeriod)
+rsv = (close - lowestLow) / (highestHigh - lowestLow) * 100
+
+kValue = ta.sma(rsv, 3)
+dValue = ta.sma(kValue, 3)
+jValue = 3 * kValue - 2 * dValue
+
+kdjBullish = kValue > dValue and kValue > 20 and kValue < 80
+kdjOverbought = kValue > 80
+kdjOversold = kValue < 20
+
+// ─────────────────────────────────────────────────────────────────────────
+// 4. 双共振信号
+// ─────────────────────────────────────────────────────────────────────────
+doubleBullish = macdBullish and kdjBullish
+doubleBearish = not macdBullish and not kdjBullish
+
+// 金叉共振
+goldenCrossResonance = macdGoldenCross and kdjOversold
+
+// ─────────────────────────────────────────────────────────────────────────
+// 5. 乖离率（Bias）
+// ─────────────────────────────────────────────────────────────────────────
+bias = (close - ma20) / ma20 * 100
+
+// ─────────────────────────────────────────────────────────────────────────
+// 6. 布林带
+// ─────────────────────────────────────────────────────────────────────────
+[bbMiddle, bbUpper, bbLower] = ta.bb(close, 20, 2)
+bbWidth = (bbUpper - bbLower) / bbMiddle * 100
+
+// 布林带 squeeze（收缩）
+bbSqueeze = bbWidth < ta.sma(bbWidth, 50) * 0.8
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🎯 狙击点位判断
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 理想买点条件
+idealBuyCondition = bullishArrangement and doubleBullish and bias < idealBuyDeviation and bias > -idealBuyDeviation
+
+// 理想卖点条件
+idealSellCondition = bearishArrangement and doubleBearish and bias > idealSellDeviation
+
+// 趋势反转信号
+trendReversalBuy = bearishArrangement[1] and bullishArrangement and goldenCrossResonance
+trendReversalSell = bullishArrangement[1] and bearishArrangement and kdjOverbought
+
+// ─────────────────────────────────────────────────────────────────────────
+// 标注狙击点位
+// ─────────────────────────────────────────────────────────────────────────
+if showSniperPoints
+    // 理想买点
+    if idealBuyCondition
+        label.new(bar_index, low, "★理想买点\n" + str.tostring(close, "#.##"),
+                  color=color.new(color.green, 0),
+                  textcolor=color.white,
+                  style=label.style_label_up,
+                  size=size.large)
+
+    // 理想卖点
+    if idealSellCondition
+        label.new(bar_index, high, "☆理想卖点\n" + str.tostring(close, "#.##"),
+                  color=color.new(color.red, 0),
+                  textcolor=color.white,
+                  style=label.style_label_down,
+                  size=size.large)
+
+    // 趋势反转买点
+    if trendReversalBuy
+        label.new(bar_index, low, "🔄反转买点\n" + str.tostring(close, "#.##"),
+                  color=color.new(color.blue, 0),
+                  textcolor=color.white,
+                  style=label.style_label_up,
+                  size=size.normal)
+
+    // 趋势反转卖点
+    if trendReversalSell
+        label.new(bar_index, high, "🔄反转卖点\n" + str.tostring(close, "#.##"),
+                  color=color.new(color.orange, 0),
+                  textcolor=color.white,
+                  style=label.style_label_down,
+                  size=size.normal)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📋 操作检查清单（可视化面板）
+// ═══════════════════════════════════════════════════════════════════════════
+
+if showChecklist and barstate.islast
+    // 创建检查清单表格
+    var table checklistTable = table.new(position.top_right, 2, 10,
+                                         bgcolor=color.new(color.white, 5),
+                                         border_width=1,
+                                         border_color=color.gray)
+
+    // 标题
+    table.cell(checklistTable, 0, 0, "操作检查清单",
+               bgcolor=color.new(color.blue, 20),
+               text_color=color.white,
+               text_size=size.normal,
+               width=200)
+
+    // 填充检查清单
+    // 1. 多头排列
+    table.cell(checklistTable, 0, 1, "多头排列",
+               text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 1, 1,
+               bullishArrangement ? "✅ 是" : "❌ 否",
+               text_color=bullishArrangement ? color.green : color.red,
+               text_size=size.small)
+
+    // 2. MACD 多头
+    table.cell(checklistTable, 0, 2, "MACD 多头",
+               text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 1, 2,
+               macdBullish ? "✅ 是" : "❌ 否",
+               text_color=macdBullish ? color.green : color.red,
+               text_size=size.small)
+
+    // 3. KDJ 多头
+    table.cell(checklistTable, 0, 3, "KDJ 多头",
+               text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 1, 3,
+               kdjBullish ? "✅ 是" : "❌ 否",
+               text_color=kdjBullish ? color.green : color.red,
+               text_size=size.small)
+
+    // 4. 双共振
+    table.cell(checklistTable, 0, 4, "MACD+KDJ 双共振",
+               text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 1, 4,
+               doubleBullish ? "✅ 是" : "❌ 否",
+               text_color=doubleBullish ? color.green : color.red,
+               text_size=size.small)
+
+    // 5. 乖离率
+    table.cell(checklistTable, 0, 5, "乖离率",
+               text_color=color.black, text_size=size.small)
+    biasText = str.tostring(bias, "#.##") + "%"
+    biasColor = bias > idealSellDeviation ? color.red :
+                bias < -idealBuyDeviation ? color.green :
+                color.yellow
+    table.cell(checklistTable, 1, 5, biasText,
+               text_color=biasColor,
+               text_size=size.small)
+
+    // 6. 布林带位置
+    bbPosition = (close - bbLower) / (bbUpper - bbLower) * 100
+    table.cell(checklistTable, 0, 6, "布林带位置",
+               text_color=color.black, text_size=size.small)
+    table.cell(checklistTable, 1, 6,
+               str.tostring(bbPosition, "#.#") + "%",
+               text_color=bbPosition > 80 ? color.red :
+                          bbPosition < 20 ? color.green :
+                          color.yellow,
+               text_size=size.small)
+
+    // 7. 当前趋势
+    table.cell(checklistTable, 0, 7, "当前趋势",
+               text_color=color.black, text_size=size.small)
+    trendText = bullishArrangement ? "📈 多头" :
+                bearishArrangement ? "📉 空头" : "➡️ 震荡"
+    trendColor = bullishArrangement ? color.green :
+                 bearishArrangement ? color.red : color.gray
+    table.cell(checklistTable, 1, 7, trendText,
+               text_color=trendColor, text_size=size.small)
+
+    // 8. 操作建议
+    table.cell(checklistTable, 0, 8, "操作建议",
+               text_color=color.black, text_size=size.small)
+    adviceText = idealBuyCondition ? "🟢 买入" :
+                 idealSellCondition ? "🔴 卖出" :
+                 bullishArrangement ? "🟡 持有" : "⚪️ 观望"
+    table.cell(checklistTable, 1, 8, adviceText, text_size=size.small)
+
+    // 9. 信号强度
+    signalStrength = 0
+    if bullishArrangement
+        signalStrength += 1
+    if macdBullish
+        signalStrength += 1
+    if kdjBullish
+        signalStrength += 1
+    if doubleBullish
+        signalStrength += 2
+
+    table.cell(checklistTable, 0, 9, "信号强度",
+               text_color=color.black, text_size=size.small)
+    strengthText = str.tostring(signalStrength) + "/5"
+    strengthColor = signalStrength >= 4 ? color.green :
+                    signalStrength >= 3 ? color.yellow :
+                    signalStrength >= 2 ? color.orange : color.red
+    table.cell(checklistTable, 1, 9, strengthText,
+               text_color=strengthColor, text_size=size.small)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ⚠️ 风险警报
+// ═══════════════════════════════════════════════════════════════════════════
+
+if showRiskAlert
+    // 极端乖离率警报
+    extremeBias = bias > 8 or bias < -8
+
+    if extremeBias
+        bgcolor(color.new(color.red, 90))
+
+    // 布林带突破警报
+    bbBreakout = close > bbUpper or close < bbLower
+
+    if bbBreakout
+        bgcolor(color.new(color.orange, 90))
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📡 信号输出（用于 Alert 集成后端）
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 定义信号类型
+signal = idealBuyCondition ? "IDEAL_BUY" :
+         idealSellCondition ? "IDEAL_SELL" :
+         trendReversalBuy ? "REVERSAL_BUY" :
+         trendReversalSell ? "REVERSAL_SELL" : "NONE"
+
+// 绘制信号（用于创建 Alert）
+plotchar(signal != "NONE", "狙击信号", "•", location.top, size=size.tiny)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📊 趋势线通道（可选）
+// ═══════════════════════════════════════════════════════════════════════════
+
+if showTrendLines
+    // 查找极值点
+    var float highLevel = na
+    var float lowLevel = na
+    var int highBar = na
+    var int lowBar = na
+
+    // 检测新的高点
+    if high == ta.highest(high, zigZagLookback)
+        and high > ta.highest(high[1], zigZagLookback) * (1 + zigZagDeviation / 100)
+        highLevel := high
+        highBar := bar_index
+
+    // 检测新的低点
+    if low == ta.lowest(low, zigZagLookback)
+        and low < ta.lowest(low[1], zigZagLookback) * (1 - zigZagDeviation / 100)
+        lowLevel := low
+        lowBar := bar_index
+
+    // 绘制趋势线
+    if not na(highLevel) and not na(lowLevel)
+        if highBar > lowBar
+            line.new(lowBar, lowLevel, highBar, highLevel,
+                    color=color.new(color.blue, 0),
+                    width=2,
+                    style=line.style_solid,
+                    extend=extend.right)
+        else
+            line.new(highBar, highLevel, lowBar, lowLevel,
+                    color=color.new(color.red, 0),
+                    width=2,
+                    style=line.style_solid,
+                    extend=extend.right)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📝 信息提示
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 底部信息栏
+var table infoTable = table.new(position.bottom_right, 2, 3,
+                                bgcolor=color.new(color.white, 5),
+                                border_width=1,
+                                border_color=color.gray)
+
+if barstate.islast
+    table.cell(infoTable, 0, 0, "股票代码",
+               bgcolor=color.new(color.blue, 20),
+               text_color=color.white,
+               text_size=size.small)
+    table.cell(infoTable, 1, 0, syminfo.ticker,
+               text_size=size.small)
+
+    table.cell(infoTable, 0, 1, "当前价格",
+               text_color=color.black,
+               text_size=size.small)
+    table.cell(infoTable, 1, 1, str.tostring(close, "#.##"),
+               text_color=color.black,
+               text_size=size.small)
+
+    table.cell(infoTable, 0, 2, "信号状态",
+               text_color=color.black,
+               text_size=size.small)
+    signalText = signal == "IDEAL_BUY" ? "🟢 理想买点" :
+                 signal == "IDEAL_SELL" ? "🔴 理想卖点" :
+                 signal == "REVERSAL_BUY" ? "🔄 反转买点" :
+                 signal == "REVERSAL_SELL" ? "🔄 反转卖点" : "⚪ 无信号"
+    table.cell(infoTable, 1, 2, signalText,
+               text_size=size.small)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🚀 Alert 提示消息
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 创建 Alert 时使用以下消息格式：
+// {
+//   "code": "{{ticker}}",
+//   "signal": "{{plot_0}}",
+//   "price": {{close}},
+//   "time": "{{time}}",
+//   "ma5": {{plot_1}},
+//   "ma20": {{plot_3}}
+// }
+//
+// Webhook URL: https://your-server.com/api/analysis
+// ═══════════════════════════════════════════════════════════════════════════
