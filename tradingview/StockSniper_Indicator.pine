@@ -250,10 +250,7 @@ bgcolor(riskBgColor)
 // ═══════════════════════════════════════════════════════════════════════════
 
 // 定义信号类型
-signal = idealBuyCondition ? "IDEAL_BUY" :
-         idealSellCondition ? "IDEAL_SELL" :
-         trendReversalBuy ? "REVERSAL_BUY" :
-         trendReversalSell ? "REVERSAL_SELL" : "NONE"
+signal = idealBuyCondition ? "IDEAL_BUY" : idealSellCondition ? "IDEAL_SELL" : trendReversalBuy ? "REVERSAL_BUY" : trendReversalSell ? "REVERSAL_SELL" : "NONE"
 
 // 绘制信号（用于创建 Alert）
 plotchar(signal != "NONE", "狙击信号", "•", location.top, size=size.tiny)
