@@ -135,12 +135,13 @@ class FinBERTClient:
 
             elapsed = time.time() - start_time
 
-            # FinBERT 返回格式: [{'label': 'positive', 'score': 0.98}, ...]
+            # FinBERT 返回格式: [{'label': 'Positive', 'score': 0.98}, ...]
+            # 注意：标签可能是大写（Positive/Negative/Neutral）或小写
             if isinstance(result, list):
                 predictions = result
 
-                # 转换为字典便于查找
-                pred_dict = {p['label']: p['score'] for p in predictions}
+                # 转换为字典便于查找（统一转为小写）
+                pred_dict = {p['label'].lower(): p['score'] for p in predictions}
 
                 # 获取各标签的置信度
                 positive_conf = pred_dict.get('positive', 0.0)
