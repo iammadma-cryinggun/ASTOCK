@@ -75,9 +75,11 @@ delta2 = delta - delta[1]
 rawTension = delta + delta2 * 0.5
 
 // 7. 标准化（除以滚动标准差）
+// 必须先声明变量
+float tension = 0.0
 if useNormalized
     std = ta.stdev(rawTension, windowSize)
-    tension = rawTension / (std != 0 ? std : 1)
+    tension := rawTension / (std != 0 ? std : 1)
 else
     tension := rawTension
 
