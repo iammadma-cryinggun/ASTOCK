@@ -853,8 +853,10 @@ class GeminiAnalyzer:
             )
 
         try:
-            # 格式化输入（包含技术面数据和新闻，以及带情绪评分的新闻列表）
-            prompt = self._format_prompt(context, name, news_context, news_list)
+            # 格式化输入（包含技术面数据、新闻、FinBERT 情绪评分、以及 VIX 指数）
+            # vix_data 从外部传入（如果配置了 VIX 计算）
+            vix_data = context.get('vix_data', None)
+            prompt = self._format_prompt(context, name, news_context, news_list, vix_data)
             
             # 获取模型名称
             model_name = getattr(self, '_current_model_name', None)
@@ -929,18 +931,20 @@ class GeminiAnalyzer:
         context: Dict[str, Any],
         name: str,
         news_context: Optional[str] = None,
-        news_list: Optional[List[Dict[str, Any]]] = None
+        news_list: Optional[List[Dict[str, Any]]] = None,
+        vix_data: Optional[Dict[str, Any]] = None
     ) -> str:
         """
         格式化分析提示词（决策仪表盘 v2.0）
 
-        包含：技术指标、实时行情（量比/换手率）、筹码分布、趋势分析、新闻 + FinBERT 情绪评分
+        包含：技术指标、实时行情（量比/换手率）、筹码分布、趋势分析、新闻 + FinBERT 情绪评分 + VIX 指数
 
         Args:
             context: 技术面数据上下文（包含增强数据）
             name: 股票名称（默认值，可能被上下文覆盖）
             news_context: 预先搜索的新闻内容（文本格式）
             news_list: 原始新闻列表（带 FinBERT 情绪评分，增强 AI 决策）
+            vix_data: VIX 指数数据（可选，用于市场环境判断）
         """
         code = context.get('code', 'Unknown')
         
@@ -1129,6 +1133,50 @@ class GeminiAnalyzer:
         else:
             prompt += """
 未搜索到该股票近期的相关新闻。请主要依据技术面数据进行分析。
+"""
+
+        # 添加 VIX 指数（市场环境参考）
+        if vix_data:
+            vix_value = vix_data.get('vix', 0)
+            vix_percentile = vix_data.get('iv_percentile', 0)
+            vix_signal = vix_data.get('signal', '正常')
+
+            # 解读 VIX 水平
+            if vix_percentile >= 95:
+                vix_interpretation = "极度恐慌（历史极值）"
+                strategy_hint = "市场极度恐慌，可能是抄底机会，但需控制仓位"
+            elif vix_percentile >= 80:
+                vix_interpretation = "高波动（恐慌）"
+                strategy_hint = "市场恐慌，建议降低仓位或谨慎观望"
+            elif vix_percentile >= 50:
+                vix_interpretation = "升温"
+                strategy_hint = "波动率上升，关注趋势变化"
+            elif vix_percentile <= 20:
+                vix_interpretation = "低波动（极度贪婪）"
+                strategy_hint = "市场极度贪婪，需警惕风险，避免追高"
+            else:
+                vix_interpretation = "正常波动"
+                strategy_hint = "市场环境正常，按技术面分析"
+
+            prompt += f"""
+
+---
+
+## 📊 市场环境指标（VIX 恐慌指数）
+
+### VIX 当前状态
+| 指标 | 数值 |
+|------|------|
+| VIX 指数 | {vix_value:.2f} |
+| IV Percentile（历史分位） | {vix_percentile:.1f}% |
+| 市场状态 | {vix_interpretation} |
+
+**交易策略建议**：{strategy_hint}
+
+**⚠️ 重要**：
+- 当 VIX > 30（历史分位 > 95%）时，市场极度恐慌，不要盲目割肉，但也不建议全仓抄底
+- 当 VIX < 12（历史分位 < 20%）时，市场极度贪婪，是降低仓位、锁定利润的时刻
+- VIX 是大盘指标，个股分析仍应以技术面和基本面为主
 """
 
         # 注入缺失数据警告

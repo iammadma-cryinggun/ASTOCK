@@ -829,35 +829,103 @@ def render_config_page(
                         detailHtml += '</div>';
                     }
 
-                    // 狙击点位（战斗计划）
+                    // 狙击点位（战斗计划）- 单行显示，用竖线分隔
                     if (dashboard.battle_plan && dashboard.battle_plan.sniper_points) {
                         const sp = dashboard.battle_plan.sniper_points;
                         detailHtml += '<div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px;">';
                         detailHtml += '<strong style="color: #15803d;">💰 狙击点位</strong>';
-                        if (sp.ideal_buy) detailHtml += '<div style="margin-top: 0.25rem;">🎯 狙击: ' + escapeHtml(sp.ideal_buy) + '</div>';
-                        if (sp.secondary_buy) detailHtml += '<div>📊 次优: ' + escapeHtml(sp.secondary_buy) + '</div>';
-                        if (sp.stop_loss) detailHtml += '<div style="color: #dc2626;">🛑 止损: ' + escapeHtml(sp.stop_loss) + '</div>';
-                        if (sp.take_profit) detailHtml += '<div style="color: #16a34a;">🎯 目标: ' + escapeHtml(sp.take_profit) + '</div>';
+
+                        // 构建点位数组
+                        const points = [];
+                        if (sp.ideal_buy) points.push('🎯买点:' + escapeHtml(sp.ideal_buy.substring(0, 15)));
+                        if (sp.stop_loss) points.push('🛑止损:' + escapeHtml(sp.stop_loss.substring(0, 15)));
+                        if (sp.take_profit) points.push('🎊目标:' + escapeHtml(sp.take_profit.substring(0, 15)));
+
+                        // 用竖线分隔，单行显示
+                        if (points.length > 0) {
+                            detailHtml += '<div style="margin-top: 0.5rem; font-weight: 500;">' + points.join(' | ') + '</div>';
+                        }
                         detailHtml += '</div>';
                     }
 
-                    // 检查清单
+                    // 重要信息区（舆情+基本面）
+                    if (dashboard.intelligence) {
+                        const intel = dashboard.intelligence;
+                        let infoLines = [];
+
+                        // 业绩预期
+                        if (intel.earnings_outlook) {
+                            const outlook = intel.earnings_outlook.substring(0, 60);
+                            infoLines.push({icon: '📊', label: '业绩', text: outlook});
+                        }
+
+                        // 舆情情绪
+                        if (intel.sentiment_summary) {
+                            const sentiment = intel.sentiment_summary.substring(0, 50);
+                            infoLines.push({icon: '💭', label: '舆情', text: sentiment});
+                        }
+
+                        if (infoLines.length > 0) {
+                            detailHtml += '<div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #f0f9ff; border-left: 4px solid #0ea5e9; border-radius: 4px;">';
+                            infoLines.forEach(item => {
+                                detailHtml += '<div style="margin-bottom: 0.25rem; font-size: 0.875rem;">' + item.icon + ' ' + item.label + ': ' + escapeHtml(item.text) + '</div>';
+                            });
+                            detailHtml += '</div>';
+                        }
+
+                        // 风险警报（最多2条）
+                        if (intel.risk_alerts && intel.risk_alerts.length > 0) {
+                            detailHtml += '<div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">';
+                            detailHtml += '<strong style="color: #dc2626;">🚨 风险:</strong>';
+                            intel.risk_alerts.slice(0, 2).forEach(risk => {
+                                const riskText = risk.length > 50 ? risk.substring(0, 50) + '...' : risk;
+                                detailHtml += '<div style="margin-top: 0.25rem; font-size: 0.875rem;">   • ' + escapeHtml(riskText) + '</div>';
+                            });
+                            detailHtml += '</div>';
+                        }
+
+                        // 利好催化（最多2条）
+                        if (intel.positive_catalysts && intel.positive_catalysts.length > 0) {
+                            detailHtml += '<div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px;">';
+                            detailHtml += '<strong style="color: #15803d;">✨ 利好:</strong>';
+                            intel.positive_catalysts.slice(0, 2).forEach(cat => {
+                                const catText = cat.length > 50 ? cat.substring(0, 50) + '...' : cat;
+                                detailHtml += '<div style="margin-top: 0.25rem; font-size: 0.875rem;">   • ' + escapeHtml(catText) + '</div>';
+                            });
+                            detailHtml += '</div>';
+                        }
+                    }
+
+                    // 持仓建议
+                    if (dashboard.core_conclusion && dashboard.core_conclusion.position_advice) {
+                        const posAdvice = dashboard.core_conclusion.position_advice;
+                        detailHtml += '<div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 4px;">';
+
+                        if (posAdvice.no_position) {
+                            detailHtml += '<div style="font-size: 0.875rem;">🆕 空仓者: ' + escapeHtml(posAdvice.no_position.substring(0, 50)) + '</div>';
+                        }
+                        if (posAdvice.has_position) {
+                            detailHtml += '<div style="font-size: 0.875rem;">💼 持仓者: ' + escapeHtml(posAdvice.has_position.substring(0, 50)) + '</div>';
+                        }
+                        detailHtml += '</div>';
+                    }
+
+                    // 检查清单（只显示不通过的项目，最多3条）
                     if (dashboard.battle_plan && dashboard.battle_plan.action_checklist && dashboard.battle_plan.action_checklist.length > 0) {
-                        detailHtml += '<div style="margin-bottom: 0.75rem;"><strong>✅ 操作检查清单:</strong><div style="margin-top: 0.25rem;">';
-                        dashboard.battle_plan.action_checklist.forEach(item => {
-                            detailHtml += '<div style="padding: 0.25rem 0; font-size: 0.875rem;">' + escapeHtml(item) + '</div>';
-                        });
-                        detailHtml += '</div></div>';
-                    }
+                        // 过滤出未通过的项目
+                        const failedChecks = dashboard.battle_plan.action_checklist.filter(item =>
+                            item.startsWith('❌') || item.startsWith('⚠️')
+                        );
 
-                    // 风险警报
-                    if (dashboard.intelligence && dashboard.intelligence.risk_alerts && dashboard.intelligence.risk_alerts.length > 0) {
-                        detailHtml += '<div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">';
-                        detailHtml += '<strong style="color: #dc2626;">⚠️ 风险警报:</strong>';
-                        dashboard.intelligence.risk_alerts.forEach(risk => {
-                            detailHtml += '<div style="margin-top: 0.25rem; font-size: 0.875rem;">• ' + escapeHtml(risk) + '</div>';
-                        });
-                        detailHtml += '</div>';
+                        if (failedChecks.length > 0) {
+                            detailHtml += '<div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">';
+                            detailHtml += '<strong style="color: #dc2626;">检查未通过项:</strong>';
+                            failedChecks.slice(0, 3).forEach(check => {
+                                const checkText = check.length > 40 ? check.substring(0, 40) : check;
+                                detailHtml += '<div style="margin-top: 0.25rem; font-size: 0.875rem;">   ' + escapeHtml(checkText) + '</div>';
+                            });
+                            detailHtml += '</div>';
+                        }
                     }
                 }
 
