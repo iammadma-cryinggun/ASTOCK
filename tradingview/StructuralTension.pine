@@ -54,7 +54,9 @@ colorOversold = input.color(color.new(color.green, 80), "超卖区域颜色", gr
 logReturn = math.log(close / close[1])
 
 // 2. 累积对数收益（模拟去趋势后的价格）
-cumLogReturn = ta.cumsum(logReturn)
+// Pine Script 没有 ta.cumsum，使用 ta.sum 滚动计算
+var float cumLogReturn = 0.0
+cumLogReturn := cumLogReturn + logReturn
 
 // 3. 多层平滑（模拟 FFT 的频域滤波）
 // 使用不同周期的 EMA 模拟提取不同频率成分
