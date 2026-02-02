@@ -808,6 +808,61 @@ def render_config_page(
                 // 完整报告格式
                 detailHtml = '<div class="task-detail" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">';
 
+                // ========== 决策仪表盘 ==========
+                if (result.dashboard) {
+                    const dashboard = result.dashboard;
+
+                    // 核心结论
+                    if (dashboard.core_conclusion) {
+                        const cc = dashboard.core_conclusion;
+                        detailHtml += '<div style="margin-bottom: 1rem; padding: 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white;">';
+                        detailHtml += '<div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">📊 决策仪表盘</div>';
+                        if (cc.one_sentence) {
+                            detailHtml += '<div style="font-size: 1rem; margin-bottom: 0.5rem;">' + escapeHtml(cc.one_sentence) + '</div>';
+                        }
+                        if (cc.signal_type) {
+                            detailHtml += '<div style="font-size: 0.875rem; opacity: 0.9;">信号: ' + escapeHtml(cc.signal_type) + '</div>';
+                        }
+                        if (cc.time_sensitivity) {
+                            detailHtml += '<div style="font-size: 0.875rem; opacity: 0.9;">时机: ' + escapeHtml(cc.time_sensitivity) + '</div>';
+                        }
+                        detailHtml += '</div>';
+                    }
+
+                    // 狙击点位（战斗计划）
+                    if (dashboard.battle_plan && dashboard.battle_plan.sniper_points) {
+                        const sp = dashboard.battle_plan.sniper_points;
+                        detailHtml += '<div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px;">';
+                        detailHtml += '<strong style="color: #15803d;">💰 狙击点位</strong>';
+                        if (sp.ideal_buy) detailHtml += '<div style="margin-top: 0.25rem;">🎯 狙击: ' + escapeHtml(sp.ideal_buy) + '</div>';
+                        if (sp.secondary_buy) detailHtml += '<div>📊 次优: ' + escapeHtml(sp.secondary_buy) + '</div>';
+                        if (sp.stop_loss) detailHtml += '<div style="color: #dc2626;">🛑 止损: ' + escapeHtml(sp.stop_loss) + '</div>';
+                        if (sp.take_profit) detailHtml += '<div style="color: #16a34a;">🎯 目标: ' + escapeHtml(sp.take_profit) + '</div>';
+                        detailHtml += '</div>';
+                    }
+
+                    // 检查清单
+                    if (dashboard.battle_plan && dashboard.battle_plan.action_checklist && dashboard.battle_plan.action_checklist.length > 0) {
+                        detailHtml += '<div style="margin-bottom: 0.75rem;"><strong>✅ 操作检查清单:</strong><div style="margin-top: 0.25rem;">';
+                        dashboard.battle_plan.action_checklist.forEach(item => {
+                            detailHtml += '<div style="padding: 0.25rem 0; font-size: 0.875rem;">' + escapeHtml(item) + '</div>';
+                        });
+                        detailHtml += '</div></div>';
+                    }
+
+                    // 风险警报
+                    if (dashboard.intelligence && dashboard.intelligence.risk_alerts && dashboard.intelligence.risk_alerts.length > 0) {
+                        detailHtml += '<div style="margin-bottom: 0.75rem; padding: 0.75rem; background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">';
+                        detailHtml += '<strong style="color: #dc2626;">⚠️ 风险警报:</strong>';
+                        dashboard.intelligence.risk_alerts.forEach(risk => {
+                            detailHtml += '<div style="margin-top: 0.25rem; font-size: 0.875rem;">• ' + escapeHtml(risk) + '</div>';
+                        });
+                        detailHtml += '</div>';
+                    }
+                }
+
+                // 原有的分析内容
+
                 // 核心结论
                 if (result.analysis_summary) {
                     detailHtml += '<div style="margin-bottom: 0.75rem;"><strong>📌 核心结论:</strong><p style="margin: 0.25rem 0; color: var(--text-light);">' + escapeHtml(result.analysis_summary) + '</p></div>';
