@@ -300,6 +300,173 @@ class PageHandler:
             body = render_futures_page([], [], True)
             return HtmlResponse(body)
 
+    def handle_futures_debug(self) -> Response:
+        """期货监控诊断页面 GET /debug/futures"""
+        try:
+            import sys
+            import os
+
+            debug_info = {
+                'python_version': sys.version,
+                'environment_checks': {},
+                'dependencies': {},
+                'data_fetch_test': {}
+            }
+
+            # 检查环境变量
+            debug_info['environment_checks']['HF_ENDPOINT'] = os.environ.get('HF_ENDPOINT', '未设置')
+
+            # 检查依赖包
+            try:
+                import akshare
+                debug_info['dependencies']['akshare'] = akshare.__version__
+            except ImportError as e:
+                debug_info['dependencies']['akshare'] = f'未安装: {e}'
+
+            try:
+                import transformers
+                debug_info['dependencies']['transformers'] = transformers.__version__
+            except ImportError as e:
+                debug_info['dependencies']['transformers'] = f'未安装: {e}'
+
+            try:
+                import torch
+                debug_info['dependencies']['torch'] = torch.__version__
+            except ImportError as e:
+                debug_info['dependencies']['torch'] = f'未安装: {e}'
+
+            # 测试国内期货数据获取
+            try:
+                from src.china_futures_fetcher import get_china_futures_fetcher
+                fetcher = get_china_futures_fetcher()
+
+                # 测试单个品种
+                test_code = 'SC'
+                info = fetcher.get_futures_info(test_code)
+                if info:
+                    price = fetcher.get_current_price(test_code)
+                    hv = fetcher.calculate_historical_volatility(test_code, window=20)
+                    iv = fetcher.estimate_implied_volatility(test_code)
+
+                    debug_info['data_fetch_test'][test_code] = {
+                        'status': 'success',
+                        'name': info['name'],
+                        'price': price,
+                        'hv': hv,
+                        'iv': iv
+                    }
+                else:
+                    debug_info['data_fetch_test'][test_code] = {
+                        'status': 'failed',
+                        'error': '未找到品种信息'
+                    }
+            except Exception as e:
+                debug_info['data_fetch_test']['error'] = str(e)
+
+            # 生成 HTML 页面
+            html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>期货监控诊断</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+        .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }}
+        h1 {{ color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; }}
+        h2 {{ color: #666; margin-top: 20px; }}
+        .section {{ margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 5px; }}
+        .success {{ color: #4CAF50; }}
+        .error {{ color: #f44336; }}
+        .warning {{ color: #ff9800; }}
+        pre {{ background: #fff; padding: 10px; border-radius: 3px; overflow-x: auto; }}
+        table {{ width: 100%; border-collapse: collapse; }}
+        th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }}
+        th {{ background: #4CAF50; color: white; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 期货监控诊断页面</h1>
+
+        <div class="section">
+            <h2>环境检查</h2>
+            <table>
+                <tr><th>项目</th><th>值</th></tr>
+                <tr><td>Python 版本</td><td>{debug_info['python_version']}</td></tr>
+                <tr><td>HF_ENDPOINT</td><td>{debug_info['environment_checks']['HF_ENDPOINT']}</td></tr>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>依赖包</h2>
+            <table>
+                <tr><th>包名</th><th>版本</th></tr>
+    """
+
+            for pkg, ver in debug_info['dependencies'].items():
+                status_class = 'success' if '未安装' not in str(ver) else 'error'
+                html += f'<tr><td>{pkg}</td><td class="{status_class}">{ver}</td></tr>'
+
+            html += """
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>数据获取测试</h2>
+    """
+
+            if 'error' in debug_info['data_fetch_test']:
+                html += f'<p class="error">❌ 测试失败: {debug_info["data_fetch_test"]["error"]}</p>'
+            elif test_code in debug_info['data_fetch_test']:
+                test_result = debug_info['data_fetch_test'][test_code]
+                if test_result['status'] == 'success':
+                    html += f"""
+                    <p class="success">✅ {test_code} ({test_result['name']}) 数据获取成功</p>
+                    <table>
+                        <tr><th>指标</th><th>值</th></tr>
+                        <tr><td>当前价格</td><td>{test_result['price']:.2f}</td></tr>
+                        <tr><td>历史波动率 (HV)</td><td>{test_result['hv']:.2f}%</td></tr>
+                        <tr><td>隐含波动率 (IV)</td><td>{test_result['iv']:.2f}%</td></tr>
+                    </table>
+                    """
+                else:
+                    html += f'<p class="error">❌ {test_code} 数据获取失败: {test_result["error"]}</p>'
+
+            html += """
+        </div>
+
+        <div class="section">
+            <h2>建议</h2>
+            <p>如果所有检查通过但 /futures 页面仍无数据，请检查：</p>
+            <ul>
+                <li>Zeabur 部署日志是否有错误</li>
+                <li>浏览器控制台是否有网络请求失败</li>
+                <li>等待 Zeabur 完成自动部署（可能需要 2-5 分钟）</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
+            """
+
+            return HtmlResponse(html.encode('utf-8'))
+
+        except Exception as e:
+            import traceback
+            error_html = f"""
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>诊断失败</title></head>
+<body>
+    <h1>诊断失败</h1>
+    <p>错误: {str(e)}</p>
+    <pre>{traceback.format_exc()}</pre>
+</body>
+</html>
+            """
+            return HtmlResponse(error_html.encode('utf-8'))
+
     def handle_subscription(self) -> Response:
         """处理订阅监控页面 GET /subscription"""
         from src.storage import DatabaseManager

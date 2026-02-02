@@ -301,7 +301,10 @@ def create_default_router() -> Router:
     router.register(
         "/futures", "GET",
         lambda q: page_handler.handle_futures(),
-        "期货波动率监控"
+        "期货波动率监控",
+        "/debug/futures", "GET",
+        lambda q: page_handler.handle_futures_debug(),
+        "期货监控诊断页面"
     )
 
     router.register(
