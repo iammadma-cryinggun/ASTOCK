@@ -239,9 +239,7 @@ if showChecklist and barstate.islast
     table.cell(checklistTable, 0, 5, "乖离率",
                text_color=color.black, text_size=size.small)
     biasText = str.tostring(bias, "#.##") + "%"
-    biasColor = bias > idealSellDeviation ? color.red :
-                bias < -idealBuyDeviation ? color.green :
-                color.yellow
+    biasColor = bias > idealSellDeviation ? color.red : bias < -idealBuyDeviation ? color.green : color.yellow
     table.cell(checklistTable, 1, 5, biasText,
                text_color=biasColor,
                text_size=size.small)
@@ -250,29 +248,24 @@ if showChecklist and barstate.islast
     bbPosition = (close - bbLower) / (bbUpper - bbLower) * 100
     table.cell(checklistTable, 0, 6, "布林带位置",
                text_color=color.black, text_size=size.small)
+    bbColor = bbPosition > 80 ? color.red : bbPosition < 20 ? color.green : color.yellow
     table.cell(checklistTable, 1, 6,
                str.tostring(bbPosition, "#.#") + "%",
-               text_color=bbPosition > 80 ? color.red :
-                          bbPosition < 20 ? color.green :
-                          color.yellow,
+               text_color=bbColor,
                text_size=size.small)
 
     // 7. 当前趋势
     table.cell(checklistTable, 0, 7, "当前趋势",
                text_color=color.black, text_size=size.small)
-    trendText = bullishArrangement ? "📈 多头" :
-                bearishArrangement ? "📉 空头" : "➡️ 震荡"
-    trendColor = bullishArrangement ? color.green :
-                 bearishArrangement ? color.red : color.gray
+    trendText = bullishArrangement ? "📈 多头" : bearishArrangement ? "📉 空头" : "➡️ 震荡"
+    trendColor = bullishArrangement ? color.green : bearishArrangement ? color.red : color.gray
     table.cell(checklistTable, 1, 7, trendText,
                text_color=trendColor, text_size=size.small)
 
     // 8. 操作建议
     table.cell(checklistTable, 0, 8, "操作建议",
                text_color=color.black, text_size=size.small)
-    adviceText = idealBuyCondition ? "🟢 买入" :
-                 idealSellCondition ? "🔴 卖出" :
-                 bullishArrangement ? "🟡 持有" : "⚪️ 观望"
+    adviceText = idealBuyCondition ? "🟢 买入" : idealSellCondition ? "🔴 卖出" : bullishArrangement ? "🟡 持有" : "⚪️ 观望"
     table.cell(checklistTable, 1, 8, adviceText, text_size=size.small)
 
     // 9. 信号强度
@@ -289,9 +282,7 @@ if showChecklist and barstate.islast
     table.cell(checklistTable, 0, 9, "信号强度",
                text_color=color.black, text_size=size.small)
     strengthText = str.tostring(signalStrength) + "/5"
-    strengthColor = signalStrength >= 4 ? color.green :
-                    signalStrength >= 3 ? color.yellow :
-                    signalStrength >= 2 ? color.orange : color.red
+    strengthColor = signalStrength >= 4 ? color.green : signalStrength >= 3 ? color.yellow : signalStrength >= 2 ? color.orange : color.red
     table.cell(checklistTable, 1, 9, strengthText,
                text_color=strengthColor, text_size=size.small)
 
