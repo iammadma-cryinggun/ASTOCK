@@ -372,12 +372,6 @@ def create_default_router() -> Router:
         "生成期货波动率风险报告"
     )
 
-    router.register(
-        "/api/analysis", "GET",
-        lambda q: api_handler.handle_tradingview_analysis(q),
-        "TradingView 集成 - 股票分析 API"
-    )
-
     # === Bot Webhook 路由 ===
     # 注意：Bot Webhook 路由在 dispatch_post 中特殊处理
     # 这里只是为了在路由列表中显示

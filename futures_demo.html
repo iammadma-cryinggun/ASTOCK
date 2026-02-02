@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>期货监控 | 智能股票分析</title>
+  <style>
+:root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --text: #1e293b;
+    --text-light: #64748b;
+    --border: #e2e8f0;
+    --success: #10b981;
+    --error: #ef4444;
+    --warning: #f59e0b;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 0;
+}
+
+/* 布局容器 */
+.app-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 导航栏 */
+.navbar {
+    background: var(--card);
+    padding: 1rem 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.navbar-nav {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.nav-link {
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: var(--text-light);
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    background: transparent;
+    border: 1px solid transparent;
+}
+
+.nav-link:hover {
+    color: var(--primary);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.nav-link.active {
+    color: var(--primary);
+    background: rgba(37, 99, 235, 0.1);
+    border-color: var(--primary);
+    font-weight: 500;
+}
+
+/* 卡片 */
+.card {
+    background: var(--card);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text);
+}
+
+.card-body {
+    color: var(--text-light);
+    line-height: 1.6;
+}
+
+/* 表单元素 */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text);
+    font-size: 0.875rem;
+}
+
+input[type="text"], select, textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+input[type="text"]:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+button {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+}
+
+button:hover {
+    background-color: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+button:disabled {
+    background-color: var(--text-light);
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-secondary {
+    background-color: var(--text-light);
+}
+
+.btn-secondary:hover {
+    background-color: var(--text);
+}
+
+.btn-success {
+    background-color: var(--success);
+}
+
+.btn-success:hover {
+    background-color: #059669;
+}
+
+.btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+}
+
+/* 输入组 */
+.input-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.input-group input {
+    flex: 1;
+}
+
+/* 报告类型选择器 */
+.report-type-selector {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.report-type-radio {
+    display: none;
+}
+
+.report-type-label {
+    flex: 1;
+    padding: 0.75rem;
+    border: 2px solid var(--border);
+    border-radius: 0.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.report-type-label:hover {
+    border-color: var(--primary);
+    background: rgba(37, 99, 235, 0.05);
+}
+
+.report-type-radio:checked + .report-type-label {
+    border-color: var(--primary);
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.report-type-description {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-light);
+    margin-top: 0.25rem;
+}
+
+/* 任务列表 */
+.task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.task-list:empty::after {
+    content: '暂无任务';
+    display: block;
+    text-align: center;
+    color: var(--text-light);
+    font-size: 0.875rem;
+    padding: 2rem;
+}
+
+.task-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--bg);
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+}
+
+.task-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.task-card.running {
+    border-color: var(--primary);
+    background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+}
+
+.task-card.completed {
+    border-color: var(--success);
+    background: linear-gradient(135deg, #ecfdf5 0%, #f8fafc 100%);
+}
+
+.task-card.failed {
+    border-color: var(--error);
+    background: linear-gradient(135deg, #fef2f2 0%, #f8fafc 100%);
+}
+
+.task-status {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.task-card.running .task-status {
+    background: var(--primary);
+    color: white;
+}
+
+.task-card.completed .task-status {
+    background: var(--success);
+    color: white;
+}
+
+.task-card.failed .task-status {
+    background: var(--error);
+    color: white;
+}
+
+.task-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.task-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.task-code {
+    font-family: monospace;
+    font-weight: 600;
+    color: var(--primary);
+    background: white;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+}
+
+.task-name {
+    color: var(--text-light);
+    font-size: 0.875rem;
+}
+
+.task-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+.task-result {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.25rem;
+}
+
+.task-advice {
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--primary);
+    color: white;
+}
+
+.task-advice.buy { background: #059669; }
+.task-advice.sell { background: #dc2626; }
+.task-advice.hold { background: #d97706; }
+.task-advice.wait { background: #6b7280; }
+
+.task-score {
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+.task-actions {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.task-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--text-light);
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.task-btn:hover {
+    background: rgba(0,0,0,0.05);
+    color: var(--text);
+    transform: none;
+}
+
+/* Spinner */
+.spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 订阅列表 */
+.subscription-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.subscription-card {
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    transition: all 0.2s;
+}
+
+.subscription-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.subscription-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.subscription-code {
+    font-family: monospace;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.subscription-status {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    background: var(--border);
+}
+
+.subscription-status.active {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.subscription-status.inactive {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.subscription-body {
+    font-size: 0.875rem;
+    color: var(--text-light);
+}
+
+/* 期货监控 */
+.futures-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.futures-card {
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    transition: all 0.2s;
+}
+
+.futures-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.futures-card.risk-low { background: #ecfdf5; border-color: #10b981; }
+.futures-card.risk-medium { background: #fef3c7; border-color: #f59e0b; }
+.futures-card.risk-high { background: #fed7aa; border-color: #f97316; }
+.futures-card.risk-extreme { background: #fee2e2; border-color: #ef4444; }
+
+.futures-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.futures-symbol {
+    font-family: monospace;
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.futures-price {
+    font-weight: 600;
+}
+
+.futures-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.futures-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.futures-label {
+    font-size: 0.7rem;
+    color: var(--text-light);
+}
+
+.futures-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.futures-risk {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.risk-badge {
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* 底部信息 */
+.footer {
+    text-align: center;
+    color: var(--text-light);
+    font-size: 0.75rem;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-light);
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.empty-state-text {
+    font-size: 0.875rem;
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: white;
+    border-left: 4px solid var(--success);
+    padding: 1rem 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: all 0.3s;
+    opacity: 0;
+    z-index: 1000;
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.toast.error { border-left-color: var(--error); }
+.toast.warning { border-left-color: var(--warning); }
+
+/* 辅助类 */
+.text-muted { color: var(--text-light); font-size: 0.875rem; }
+.text-center { text-align: center; }
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-4 { margin-top: 1rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+  
+  <div class="app-container">
+    
+    <nav class="navbar">
+      <div class="navbar-brand">📈 智能股票分析</div>
+      <div class="navbar-nav">
+        <a class="nav-link " href="/">🔍 查询分析</a><a class="nav-link " href="/subscription">📋 订阅监控</a><a class="nav-link active" href="/futures">📊 期货监控</a><a class="nav-link " href="/history">📜 历史记录</a>
+      </div>
+    </nav>
+    
+
+    
+        <div class="card" style="background: #fee2e2; border-color: #ef4444;">
+          <div class="card-body" style="text-align: center; color: #991b1b;">
+            <div style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">🚨 极端风险预警</div>
+            <div>检测到 1 个标的出现 IV-HV 极端背离</div>
+          </div>
+        </div>
+        
+
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">📊 期货/期权波动率监控</h2>
+        <button class="btn-sm" onclick="location.reload()">🔄 刷新</button>
+      </div>
+      <div class="card-body">
+        <p class="text-muted">
+          监控贵金属、商品、加密货币的 IV-HV 背离信号。当 IV 处于历史高位且显著高于 HV 时，表明期权杠杆极其昂贵，多头面临时间损耗反噬。
+        </p>
+      </div>
+    </div>
+
+    
+    <div class="card">
+      <div class="card-body" style="display: flex; gap: 1.5rem; justify-content: center; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: #10b981;"></span>
+          <span>安全 (低)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: #f59e0b;"></span>
+          <span>警告 (中)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: #f97316;"></span>
+          <span>高危 (高)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: #ef4444;"></span>
+          <span>极端 (极高)</span>
+        </div>
+      </div>
+    </div>
+    
+
+    <div class="futures-grid">
+      
+        <div class="futures-card risk-medium">
+          <div class="futures-header">
+            <span class="futures-symbol">GLD</span>
+            <span style="font-size: 0.875rem; color: var(--text-light);">黄金SPDR</span>
+            <span class="futures-price">$195.20</span>
+          </div>
+          <div class="futures-metrics">
+            <div class="futures-metric">
+              <span class="futures-label">IV (隐含波动率)</span>
+              <span class="futures-value">18.50%</span>
+            </div>
+            <div class="futures-metric">
+              <span class="futures-label">IV 分位数</span>
+              <span class="futures-value" style="color: #10b981;">75.0%</span>
+            </div>
+            <div class="futures-metric">
+              <span class="futures-label">HV (历史波动率)</span>
+              <span class="futures-value">15.20%</span>
+            </div>
+            <div class="futures-metric">
+              <span class="futures-label">IV-HV 背离度</span>
+              <span class="futures-value">+3.30%</span>
+            </div>
+          </div>
+          <div class="futures-risk">
+            <span class="risk-badge">MEDIUM</span>
+            <span class="text-muted" style="font-size: 0.7rem;">2026-02-02 19:45</span>
+          </div>
+        </div>
+        
+        <div class="futures-card risk-high">
+          <div class="futures-header">
+            <span class="futures-symbol">SLV</span>
+            <span style="font-size: 0.875rem; color: var(--text-light);">白银iShares</span>
+            <span class="futures-price">$22.50</span>
+          </div>
+          <div class="futures-metrics">
+            <div class="futures-metric">
+              <span class="futures-label">IV (隐含波动率)</span>
+              <span class="futures-value">28.80%</span>
+            </div>
+            <div class="futures-metric">
+              <span class="futures-label">IV 分位数</span>
+              <span class="futures-value" style="color: #f59e0b;">85.0%</span>
+            </div>
+            <div class="futures-metric">
+              <span class="futures-label">HV (历史波动率)</span>
+              <span class="futures-value">22.00%</span>
+            </div>
+            <div class="futures-metric">
+              <span class="futures-label">IV-HV 背离度</span>
+              <span class="futures-value">+6.80%</span>
+            </div>
+          </div>
+          <div class="futures-risk">
+            <span class="risk-badge">HIGH</span>
+            <span class="text-muted" style="font-size: 0.7rem;">2026-02-02 19:45</span>
+          </div>
+        </div>
+        
+        <div class="futures-card risk-extreme">
+          <div class="futures-header">
+            <span class="futures-symbol">USO</span>
+            <span style="font-size: 0.875rem; color: var(--text-light);">原油</span>
+            <span class="futures-price">$72.30</span>
+          </div>
+          <div class="futures-metrics">
+            <div class="futures-metric">
+              <span class="futures-label">IV (隐含波动率)</span>
+              <span class="futures-value">35.20%</span>
+            </div>
+            <div class="futures-metric">
+              <span class="futures-label">IV 分位数</span>
+              <span class="futures-value" style="color: #f97316;">92.0%</span>
+            </div>
+            <div class="futures-metric">
+              <span class="futures-label">HV (历史波动率)</span>
+              <span class="futures-value">25.50%</span>
+            </div>
+            <div class="futures-metric">
+              <span class="futures-label">IV-HV 背离度</span>
+              <span class="futures-value">+9.70%</span>
+            </div>
+          </div>
+          <div class="futures-risk">
+            <span class="risk-badge">EXTREME</span>
+            <span class="text-muted" style="font-size: 0.7rem;">2026-02-02 19:45</span>
+          </div>
+        </div>
+        
+        <div class="futures-card risk-high">
+          <div class="futures-header">
+            <span class="futures-symbol">UNG</span>
+            <span style="font-size: 0.875rem; color: var(--text-light);">天然气</span>
+            <span class="futures-price">$8.45</span>
+          </div>
+          <div class="futures-metrics">
+            <div class="futures-metric">
+              <span class="futures-label">IV (隐含波动率)</span>
+              <span class="futures-value">42.50%</span>
+            </div>
+            <div class="futures-metric">
+              <span class="futures-label">IV 分位数</span>
+              <span class="futures-value" style="color: #f59e0b;">88.0%</span>
+            </div>
+            <div class="futures-metric">
+              <span class="futures-label">HV (历史波动率)</span>
+              <span class="futures-value">35.20%</span>
+            </div>
+            <div class="futures-metric">
+              <span class="futures-label">IV-HV 背离度</span>
+              <span class="futures-value">+7.30%</span>
+            </div>
+          </div>
+          <div class="futures-risk">
+            <span class="risk-badge">HIGH</span>
+            <span class="text-muted" style="font-size: 0.7rem;">2026-02-02 19:45</span>
+          </div>
+        </div>
+        
+    </div>
+
+    <div class="footer">
+      <p>💡 数据来源: CBOE 官方波动率指数 (VIX, GVZ, OVX 等) | 消除波动率微笑偏差</p>
+      <p class="mt-1">数据每5分钟自动刷新 | IV-HV 背离策略预警</p>
+    </div>
+  </div>
+
+  
+</body>
+</html>
