@@ -1,0 +1,215 @@
+//@version=5
+indicator("结构张力模型 (Structural Tension)", overlay=false, max_boxes_count=500, max_lines_count=500)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📊 结构张力模型 - TradingView 版
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// 核心思想：
+// 将价格波动映射到"张力"指标，通过张力的拐点识别买卖信号。
+//
+// 由于 Pine Script 不支持完整的 FFT 和 Hilbert 变换，
+// 本指标使用以下方法近似：
+// 1. 对数收益率（标准化）
+// 2. 多层平滑（模拟频域滤波）
+// 3. 动量振荡（模拟张力）
+// 4. 滚动窗口（避免未来函数）
+//
+// 使用说明：
+// - 张力 > 阈值：超买区域
+// - 张力 < -阈值：超卖区域
+// - 张力拐头向上：买入信号
+// - 张力拐头向下：卖出信号
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🔧 参数设置
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 窗口参数
+windowSize = input.int(200, "窗口大小（交易日）", minval=50, maxval=500, group="窗口设置")
+smoothPeriod = input.int(20, "平滑周期", minval=5, maxval=50, group="平滑设置")
+
+// 张力参数
+tensionThreshold = input.float(1.6, "张力阈值", minval=0.5, maxval=3.0, step=0.1, group="张力设置")
+useNormalized = input.bool(true, "使用标准化张力", group="张力设置")
+
+// 显示选项
+showTension = input.bool(true, "显示张力曲线", group="显示选项")
+showSignals = input.bool(true, "显示买卖信号", group="显示选项")
+showHistogram = input.bool(true, "显示张力柱状图", group="显示选项")
+showPanel = input.bool(true, "显示信息面板", group="显示选项")
+
+// 颜色设置
+colorBuy = input.color(color.new(color.green, 0), "买入信号颜色", group="颜色设置")
+colorSell = input.color(color.new(color.red, 0), "卖出信号颜色", group="颜色设置")
+colorOverbought = input.color(color.new(color.red, 80), "超买区域颜色", group="颜色设置")
+colorOversold = input.color(color.new(color.green, 80), "超卖区域颜色", group="颜色设置")
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📈 核心计算
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 1. 对数收益率（标准化价格变化）
+logReturn = math.log(close / close[1])
+
+// 2. 累积对数收益（模拟去趋势后的价格）
+cumLogReturn = ta.cumsum(logReturn)
+
+// 3. 多层平滑（模拟 FFT 的频域滤波）
+// 使用不同周期的 EMA 模拟提取不同频率成分
+emaFast = ta.ema(cumLogReturn, math.round(smoothPeriod / 4))
+emaMid = ta.ema(cumLogReturn, smoothPeriod)
+emaSlow = ta.ema(cumLogReturn, smoothPeriod * 2)
+
+// 4. 合成信号（模拟 Top N 频率重构）
+reconstructed = emaFast * 0.5 + emaMid * 0.3 + emaSlow * 0.2
+
+// 5. 计算变化率（模拟 Hilbert 变换的虚部）
+delta = reconstructed - reconstructed[1]
+delta2 = delta - delta[1]
+
+// 6. 计算原始张力（动量 + 二阶导数）
+rawTension = delta + delta2 * 0.5
+
+// 7. 标准化（除以滚动标准差）
+if useNormalized
+    std = ta.stdev(rawTension, windowSize)
+    tension = rawTension / (std != 0 ? std : 1)
+else
+    tension := rawTension
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🎯 信号生成
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 检测拐点
+prevTension = tension[1]
+tensionIncreasing = tension > prevTension
+tensionDecreasing = tension < prevTension
+
+// 超买/超卖状态
+overbought = tension > tensionThreshold
+oversold = tension < -tensionThreshold
+extremeOverbought = tension > tensionThreshold * 1.5
+extremeOversold = tension < -tensionThreshold * 1.5
+
+// 买入信号：从超卖区域拐头向上
+buySignal = oversold[1] and tensionIncreasing and not oversold
+
+// 卖出信号：从超买区域拐头向下
+sellSignal = overbought[1] and tensionDecreasing and not overbought
+
+// 极端信号
+extremeBuy = extremeOversold[1] and tensionIncreasing
+extremeSell = extremeOverbought[1] and tensionDecreasing
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📊 可视化
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 绘制张力曲线
+plot(showTension ? tension : na, "张力", color=color.blue, linewidth=2)
+
+// 阈值线
+hline(tensionThreshold, "超买阈值", color=color.red, linestyle=hline.style_dashed)
+hline(-tensionThreshold, "超卖阈值", color=color.green, linestyle=hline.style_dashed)
+hline(0, "零轴", color=color.gray, linestyle=hline.style_dotted)
+
+// 背景色带（极端区域）
+bgcolor(extremeOverbought ? colorOverbought : extremeOversold ? colorOversold : na)
+
+// 柱状图（可选）
+plot(showHistogram and showTension ? tension : na, "张力柱", style=plot.style_columns, color=tension > 0 ? color.red : color.green)
+
+// 信号标注
+if showSignals
+    // 普通买入
+    plotshape(buySignal, "买入", shape.triangleup, location.bottom, colorBuy, size=size.small, text="买入")
+
+    // 普通卖出
+    plotshape(sellSignal, "卖出", shape.triangledown, location.top, colorSell, size=size.small, text="卖出")
+
+    // 极端买入
+    if extremeBuy
+        label.new(bar_index, 0, "★极端买入", color=color.new(color.green, 0), textcolor=color.white, style=label.style_label_up, size=size.large)
+
+    // 极端卖出
+    if extremeSell
+        label.new(bar_index, 0, "☆极端卖出", color=color.new(color.red, 0), textcolor=color.white, style=label.style_label_down, size=size.large)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📋 信息面板
+// ═══════════════════════════════════════════════════════════════════════════
+
+if showPanel and barstate.islast
+    // 创建信息表格
+    var table infoPanel = table.new(position.top_right, 2, 8, bgcolor=color.new(color.white, 5), border_width=1, border_color=color.gray)
+
+    // 标题
+    table.cell(infoPanel, 0, 0, "结构张力模型", bgcolor=color.new(color.blue, 20), text_color=color.white, text_size=size.normal, width=200)
+    table.merge_cells(infoPanel, 0, 0, 1, 0)
+
+    // 当前张力
+    table.cell(infoPanel, 0, 1, "当前张力", text_color=color.black, text_size=size.small)
+    tensionText = str.tostring(tension, "#.##")
+    tensionColor = tension > tensionThreshold ? color.red : tension < -tensionThreshold ? color.green : color.blue
+    table.cell(infoPanel, 1, 1, tensionText, text_color=tensionColor, text_size=size.small)
+
+    // 市场状态
+    table.cell(infoPanel, 0, 2, "市场状态", text_color=color.black, text_size=size.small)
+    stateText = extremeOverbought ? "极度超买" : extremeOversold ? "极度超卖" : overbought ? "超买" : oversold ? "超卖" : "中性"
+    stateColor = extremeOverbought ? color.new(color.red, 0) : extremeOversold ? color.new(color.green, 0) : overbought ? color.new(color.red, 50) : oversold ? color.new(color.green, 50) : color.gray
+    table.cell(infoPanel, 1, 2, stateText, text_color=stateColor, text_size=size.small)
+
+    // 趋势方向
+    table.cell(infoPanel, 0, 3, "趋势方向", text_color=color.black, text_size=size.small)
+    trendText = tensionIncreasing ? "向上 ↗" : tensionDecreasing ? "向下 ↘" : "震荡 →"
+    trendColor = tensionIncreasing ? color.green : tensionDecreasing ? color.red : color.gray
+    table.cell(infoPanel, 1, 3, trendText, text_color=trendColor, text_size=size.small)
+
+    // 信号状态
+    table.cell(infoPanel, 0, 4, "信号状态", text_color=color.black, text_size=size.small)
+    signalText = buySignal[1] ? "买入信号" : sellSignal[1] ? "卖出信号" : "观望"
+    signalColor = buySignal[1] ? color.green : sellSignal[1] ? color.red : color.gray
+    table.cell(infoPanel, 1, 4, signalText, text_color=signalColor, text_size=size.small)
+
+    // 阈值距离
+    table.cell(infoPanel, 0, 5, "阈值距离", text_color=color.black, text_size=size.small)
+    thresholdDist = str.tostring(math.abs(tension) / tensionThreshold * 100, "#.#") + "%"
+    table.cell(infoPanel, 1, 5, thresholdDist, text_size=size.small)
+
+    // 当前价格
+    table.cell(infoPanel, 0, 6, "当前价格", text_color=color.black, text_size=size.small)
+    table.cell(infoPanel, 1, 6, str.tostring(close, "#.##"), text_size=size.small)
+
+    // 股票代码
+    table.cell(infoPanel, 0, 7, "股票代码", text_color=color.black, text_size=size.small)
+    table.cell(infoPanel, 1, 7, syminfo.ticker, text_size=size.small)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 📡 信号输出（用于 Alert）
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 定义信号类型（用于 Alert）
+signal = buySignal ? "BUY" : sellSignal ? "SELL" : extremeBuy ? "EXTREME_BUY" : extremeSell ? "EXTREME_SELL" : "NONE"
+
+// 绘制信号字符（用于创建 Alert）
+plotchar(signal != "NONE", "张力信号", "•", location.top, size=size.tiny)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 🚀 Alert 配置提示
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// 创建 Alert 时：
+// 1. 条件：张力信号 不等于 "NONE"
+// 2. Webhook URL: https://your-server.com/api/structural-tension
+// 3. 消息格式：
+//    {
+//      "ticker": "{{ticker}}",
+//      "signal": "{{plot_0}}",
+//      "tension": {{plot_1}},
+//      "price": {{close}}
+//    }
+//
+// ═══════════════════════════════════════════════════════════════════════════
