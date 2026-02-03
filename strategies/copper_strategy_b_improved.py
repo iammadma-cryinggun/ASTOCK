@@ -128,12 +128,16 @@ def calculate_position_size(ratio, rsi):
 
 def run_strategy():
     print("=" * 80)
-    print("沪铜策略 B - 逻辑改进版（方案3）")
+    print("沪铜策略 B - 实盘逻辑版（修正未来函数）")
     print("=" * 80)
     print("\n改进内容:")
-    print("  1. [移除] 波动率过滤（原来太严格）")
-    print("  2. [保留] 动态仓位 - Ratio > 1.5 时加仓到 1.5-2.0 倍")
-    print("  3. [保留] 分批止盈 - 盈利 1.5% 卖 50%，盈利 2.5% 全部止盈")
+    print("  1. [修正] 使用上一根K线Ratio计算仓位（实盘逻辑）")
+    print("  2. [移除] 波动率过滤（原来太严格）")
+    print("  3. [保留] 动态仓位 - Ratio > 1.5 时加仓到 1.5-2.0 倍")
+    print("  4. [保留] 分批止盈 - 盈利 1.5% 卖 50%，盈利 2.5% 全部止盈")
+    print("\n修正说明:")
+    print("  - 回测原逻辑: 用当前K线Ratio（收盘后才知道，无法买入）")
+    print("  - 实盘修正版: 用上一根K线Ratio（收盘前已知，可下单）")
     print("-" * 80)
 
     start_time = time.time()
@@ -207,23 +211,28 @@ def run_strategy():
                 entry_price = row['close']
                 entry_date = row['datetime']
 
-                # 动态仓位计算
-                position_size = calculate_position_size(row['ratio'], row['rsi'])
+                # ==========================================
+                # ✅ 实盘逻辑：用上一根K线的Ratio计算仓位
+                # ==========================================
+                # 回测错误：用当前Ratio（当前收盘后才知道）
+                # 实盘正确：用上一根Ratio（上一根收盘后已知道）
+                position_size = calculate_position_size(row['ratio_prev'], row['rsi'])
 
                 reason = 'sniper' if row['sniper_signal'] else 'chase'
                 reason_text = "狙击开多" if reason == 'sniper' else "暴力追涨"
                 ratio_info = f"| Ratio收敛: {row['ratio_prev']:.2f}->{row['ratio']:.2f}" if reason == 'sniper' else "| EMA金叉 + RSI强势"
 
-                # 显示仓位和 Ratio 强度
+                # 显示仓位（注意：用的是上一根Ratio）
                 print(f"[买入] {reason_text} | {row['datetime']} | 价格: {row['close']:.0f} | "
-                      f"仓位: {position_size:.1f}x | Ratio: {row['ratio']:.2f} {ratio_info}")
+                      f"仓位: {position_size:.1f}x (上一根Ratio: {row['ratio_prev']:.2f}) {ratio_info}")
 
                 positions.append({
                     'date': row['datetime'],
                     'price': row['close'],
                     'type': 'buy',
                     'reason': reason,
-                    'position_size': position_size
+                    'position_size': position_size,
+                    'ratio_used': row['ratio_prev']  # 记录使用的Ratio
                 })
 
                 batch1_sold = False
@@ -357,17 +366,22 @@ def run_strategy():
     print("-" * 80)
     print(f"[性能] 总耗时: {total_time:.3f} 秒")
 
-    # 对比策略 A
+    # 对比策略 A 和 策略B回测版
     print("\n" + "=" * 80)
-    print("与策略 A (最优参数版) 对比")
+    print("三版本对比")
     print("=" * 80)
     print(f"\n策略 A (固定仓位, 一次性止盈):")
     print(f"  总盈亏: 28,688 点 | 胜率: 59.5% | 交易: 42 笔")
-    print(f"\n策略 B (动态仓位, 分批止盈, 无波动率过滤):")
+    print(f"\n策略B回测版 (动态仓位-当前Ratio, 未来函数):")
+    print(f"  总盈亏: 32,842 点 | 胜率: 59.5% | 交易: 42 笔")
+    print(f"\n策略B实盘版 (动态仓位-上一根Ratio, 实盘可行):")
     print(f"  总盈亏: {total:.0f} 点 | 胜率: {win_rate:.1f}% | 开仓: {num_trades} 笔")
 
-    improvement = total - 28688
-    print(f"\n改进: {improvement:+.0f} 点 ({improvement/28688*100:+.1f}%)")
+    improvement_vs_A = total - 28688
+    decline_vs_backtest = total - 32842
+
+    print(f"\n相对策略A: {improvement_vs_A:+.0f} 点 ({improvement_vs_A/28688*100:+.1f}%)")
+    print(f"相对回测版: {decline_vs_backtest:+.0f} 点 ({decline_vs_backtest/32842*100:+.1f}%) - 修正未来函数影响")
 
     # 绘图
     print("\n[绘图] 正在生成图表...")
@@ -402,8 +416,8 @@ def run_strategy():
         elif p['type'] == 'stop':
             ax1.scatter(p['date'], p['price'], marker='X', color='black', s=100, zorder=5)
 
-    ax1.set_title(f'Copper Strategy B (Logic Improved - Ver 2) | Total: {total:.0f} pts | Win Rate: {win_rate:.1f}% | Trades: {num_trades}\n'
-                  f'Dynamic Position (1.0-2.0x) | Batch Take-Profit (50%@1.5% + 50%@2.5%)', fontsize=12)
+    ax1.set_title(f'Copper Strategy B (Real Logic - Fixed Look-Ahead) | Total: {total:.0f} pts | Win Rate: {win_rate:.1f}% | Trades: {num_trades}\n'
+                  f'Dynamic Position (Using Prev Ratio) | Batch Take-Profit (50%@1.5% + 50%@2.5%)', fontsize=12)
     ax1.legend(loc='upper left')
     ax1.grid(True, alpha=0.3)
 
